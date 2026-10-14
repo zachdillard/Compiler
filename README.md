@@ -202,28 +202,33 @@ Run the project tests from the repository root:
 dotnet test
 ```
 
-To check both build configurations:
+To check the project and chapter-one book tests in both build configurations:
 
 ```sh
-dotnet build --configuration Debug
+dotnet build --configuration Debug -m:1 --disable-build-servers
 dotnet test --configuration Debug --no-build
-dotnet build --configuration Release
+BUILD_CONFIGURATION=Debug ./tests/book_tests.sh --chapter 1
+dotnet build --configuration Release -m:1 --disable-build-servers
 dotnet test --configuration Release --no-build
+BUILD_CONFIGURATION=Release ./tests/book_tests.sh --chapter 1
 ```
+
+The xUnit v2 project includes unit tests for Lexer, Parser, Generator, and
+Emitter, an in-memory pipeline test from C source to assembly text, and
+integration tests for the compiler executable. The unit and in-memory pipeline
+tests do not invoke GCC or require Rosetta.
 
 Integration tests launch the compiler DLL copied into the test output, using
 that build's test runtime configuration and dependency manifest. They do not
-require a separate Debug build when testing Release.
+require a separate Debug build when testing Release. They require GCC on
+`PATH`; executing custom compiler output on Apple Silicon also requires Rosetta 2.
+They check CLI behavior, diagnostics, intermediate-file cleanup, and execution
+of generated programs.
 
 GitHub Actions runs these builds and tests on an Intel macOS runner for pushes,
 pull requests, and manual runs. It installs the SDK from `global.json` and checks
 GCC availability. Each configuration also runs the chapter-one book suite
 against a separate checkout of the upstream tests.
-
-The tests require GCC to be available on `PATH` and include parser, generator,
-emitter, and CLI checks, including execution of generated programs. The current
-implementation passes all 30 project tests and all 24 chapter-one book tests
-on macOS with Apple Silicon and Rosetta 2.
 
 ## Concepts
 
@@ -235,14 +240,5 @@ cd concepts
 dotnet <concept-name>.cs
 ```
 
-For example:
-
-```sh
-dotnet lexer.cs
-```
-
-The available examples are `lexer.cs`, `parser.cs`, and `compiler.cs`.
-
-VS Code includes `Debug parser.cs` and `Debug compiler.cs` configurations.
-Install the Microsoft C# extension to use them. Each configuration builds its
-example into `obj/` before launching it; paths are relative to the workspace.
+See the [concepts guide](concepts/README.md) for the available examples,
+requirements, and VS Code debugging instructions.
