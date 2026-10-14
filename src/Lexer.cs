@@ -14,13 +14,13 @@ public partial class Lexer
 
       bool matched = false;
 
-      foreach ((Type type, Regex pattern) in Patterns)
+      foreach ((Regex pattern, Func<string, Token> create) in Patterns)
       {
         Match match = pattern.Match(input);
         if (!match.Success || match.Index != 0)
           continue;
 
-        tokens.Add(CreateToken(type, match.Value));
+        tokens.Add(create(match.Value));
         input = input[match.Length..];
         matched = true;
         break;
@@ -33,33 +33,18 @@ public partial class Lexer
     return tokens;
   }
 
-  private static Token CreateToken(Type type, string value) => type switch
-  {
-    var _ when type == typeof(Identifier) => new Identifier(value),
-    var _ when type == typeof(Int) => new Int(),
-    var _ when type == typeof(Void) => new Void(),
-    var _ when type == typeof(Return) => new Return(),
-    var _ when type == typeof(Constant) => new Constant(int.Parse(value)),
-    var _ when type == typeof(OpenParenthesis) => new OpenParenthesis(),
-    var _ when type == typeof(CloseParenthesis) => new CloseParenthesis(),
-    var _ when type == typeof(OpenBrace) => new OpenBrace(),
-    var _ when type == typeof(CloseBrace) => new CloseBrace(),
-    var _ when type == typeof(Semicolon) => new Semicolon(),
-    _ => throw new InvalidOperationException("Unknown lexer pattern.")
-  };
-
-  private static readonly List<KeyValuePair<Type, Regex>> Patterns =
+  private static readonly (Regex Pattern, Func<string, Token> Create)[] Patterns =
   [
-    new(typeof(Int), IntRegex),
-    new(typeof(Void), VoidRegex),
-    new(typeof(Return), ReturnRegex),
-    new(typeof(Identifier), IdentifierRegex),
-    new(typeof(Constant), ConstantRegex),
-    new(typeof(OpenParenthesis), OpenParenthesisRegex),
-    new(typeof(CloseParenthesis), CloseParenthesisRegex),
-    new(typeof(OpenBrace), OpenBraceRegex),
-    new(typeof(CloseBrace), CloseBraceRegex),
-    new(typeof(Semicolon), SemicolonRegex)
+    (IntRegex, _ => new Int()),
+    (VoidRegex, _ => new Void()),
+    (ReturnRegex, _ => new Return()),
+    (IdentifierRegex, text => new Identifier(text)),
+    (ConstantRegex, text => new Constant(int.Parse(text))),
+    (OpenParenthesisRegex, _ => new OpenParenthesis()),
+    (CloseParenthesisRegex, _ => new CloseParenthesis()),
+    (OpenBraceRegex, _ => new OpenBrace()),
+    (CloseBraceRegex, _ => new CloseBrace()),
+    (SemicolonRegex, _ => new Semicolon())
   ];
 
   [GeneratedRegex(@"\bint\b")]
