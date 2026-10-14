@@ -153,6 +153,17 @@ echo $?
 The example exits with status `2` with either compiler. It prints nothing;
 `echo $?` displays the exit status.
 
+## Debugging in VS Code
+
+Install the Microsoft C# extension and open the repository root in VS Code.
+There is a debug configuration for the main compiler and each example in
+`concepts/`. Choose a configuration in the Run and Debug view, set breakpoints,
+and press F5. Each configuration runs its matching build task before launching.
+
+The main compiler configuration uses `data/return_2.c` as its input. To debug
+another source file or compiler mode, edit its `args` in
+[`.vscode/launch.json`](.vscode/launch.json).
+
 ## Optional book tests
 
 The book suite is a separate checkout and requires Git, Python 3.8 or newer,
@@ -241,4 +252,4 @@ dotnet <concept-name>.cs
 ```
 
 See the [concepts guide](concepts/README.md) for the available examples,
-requirements, and VS Code debugging instructions.
+requirements, and run instructions.

@@ -20,9 +20,3 @@ dotnet <concept-name>.cs
 | `lexer.cs` | Tokenizes a small C function and prints its tokens. |
 | `parser.cs` | Parses a predefined token list into an abstract syntax tree. |
 | `compiler.cs` | Combines lexing, parsing, code generation, and assembly emission for a sample function. |
-
-## Debugging in VS Code
-
-VS Code includes `Debug parser.cs` and `Debug compiler.cs` configurations.
-Install the Microsoft C# extension to use them. Each configuration builds its
-example into `obj/` before launching it; paths are relative to the workspace.

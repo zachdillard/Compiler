@@ -12,4 +12,5 @@
 - Use `dotnet run --project src/Compiler.csproj -- -gcc <source-file>` to select the temporary GCC-backed compiler. GCC preprocessing, assembly generation, and linking produce an executable beside the input; intermediate `.i` and `.s` files are removed after successful stages.
 - Use `dotnet run --project src/Compiler.csproj -- -S <source-file>` for custom assembly-only mode, or combine `-S` and `-gcc` in either order (`dotnet run --project src/Compiler.csproj -- -gcc -S <source-file>`) for GCC assembly output without linking. The intermediate `.i` file is removed.
 - The `concepts/` folder contains self-contained, file-based C# examples. From that folder, run an example individually with `dotnet <concept-name>.cs`.
+- When adding a new concept, add a matching build task in `.vscode/tasks.json` and debug configuration in `.vscode/launch.json`, using the labels `Build <Name> Concept` and `Debug <Name> Concept`.
 - When adding a new C source file under `data/`, add its generated output file to `.gitignore`.
