@@ -2,18 +2,35 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug parser.cs",
+      "name": "Debug Compiler",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "Build parser.cs",
+      "preLaunchTask": "Build Compiler",
+      "program": "${workspaceFolder}/src/bin/Debug/net11.0/Compiler.dll",
+      "args": ["${workspaceFolder}/data/return_2.c"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug Lexer Concept",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build Lexer Concept",
+      "program": "${workspaceFolder}/obj/lexer-debug/lexer.dll",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug Parser Concept",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build Parser Concept",
       "program": "${workspaceFolder}/obj/parser-debug/parser.dll",
       "cwd": "${workspaceFolder}"
     },
     {
-      "name": "Debug compiler.cs",
+      "name": "Debug Compiler Concept",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "Build compiler.cs",
+      "preLaunchTask": "Build Compiler Concept",
       "program": "${workspaceFolder}/obj/compiler-debug/compiler.dll",
       "cwd": "${workspaceFolder}"
     }

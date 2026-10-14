@@ -2,24 +2,59 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build parser.cs",
+      "label": "Build Compiler",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/Compiler.csproj",
+        "--configuration",
+        "Debug",
+        "-m:1",
+        "--disable-build-servers"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build Lexer Concept",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/concepts/lexer.cs",
+        "-m:1",
+        "--disable-build-servers",
+        "--output",
+        "${workspaceFolder}/obj/lexer-debug"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build Parser Concept",
       "type": "process",
       "command": "dotnet",
       "args": [
         "build",
         "${workspaceFolder}/concepts/parser.cs",
+        "-m:1",
+        "--disable-build-servers",
         "--output",
         "${workspaceFolder}/obj/parser-debug"
       ],
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "Build compiler.cs",
+      "label": "Build Compiler Concept",
       "type": "process",
       "command": "dotnet",
       "args": [
         "build",
         "${workspaceFolder}/concepts/compiler.cs",
+        "-m:1",
+        "--disable-build-servers",
         "--output",
         "${workspaceFolder}/obj/compiler-debug"
       ],
