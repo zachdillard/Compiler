@@ -12,6 +12,10 @@ try
 {
   try
   {
+    exitCode = Preprocessor.Run(compilerArgs.InputFile, compilerArgs.PreprocessedFile);
+    if (exitCode != ExitCode.Success)
+      return exitCode;
+
     List<Token> tokens = Lexer.Run(File.ReadAllText(compilerArgs.PreprocessedFile));
     if (!compilerArgs.LexOnly)
     {
@@ -26,30 +30,35 @@ try
     Console.Error.WriteLine($"Error: {exception.Message}");
     return ExitCode.Failure;
   }
+  catch (OverflowException)
+  {
+    Console.Error.WriteLine("Error: integer constant is outside the supported int range.");
+    return ExitCode.Failure;
+  }
   finally
   {
     File.Delete(compilerArgs.PreprocessedFile);
   }
+
+  if (compilerArgs.LexOnly || compilerArgs.AssemblyOnly)
+    return ExitCode.Success;
+
+  exitCode = Assembler.Run(compilerArgs.AssemblyFile, compilerArgs.OutputFile, x86_64: true);
+  if (exitCode != ExitCode.Success)
+    Console.Error.WriteLine("Error: could not assemble and link the program.");
+
+  return exitCode;
 }
-catch (IOException)
+catch (IOException exception)
 {
-  Console.Error.WriteLine("Error: could not create the assembly file.");
+  Console.Error.WriteLine($"Error: could not access a compiler file: {exception.Message}");
   return ExitCode.Failure;
 }
-catch (UnauthorizedAccessException)
+catch (UnauthorizedAccessException exception)
 {
-  Console.Error.WriteLine("Error: could not access a compiler file.");
+  Console.Error.WriteLine($"Error: could not access a compiler file: {exception.Message}");
   return ExitCode.Failure;
 }
-
-if (compilerArgs.LexOnly || compilerArgs.AssemblyOnly)
-  return ExitCode.Success;
-
-exitCode = Assembler.Run(compilerArgs.AssemblyFile, compilerArgs.OutputFile, x86_64: true);
-if (exitCode != ExitCode.Success)
-  Console.Error.WriteLine("Error: could not assemble and link the program.");
-
-return exitCode;
 
 static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCode)
 {
@@ -101,14 +110,7 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
   var assemblyFile = Path.ChangeExtension(inputFile, ".s");
   var outputFile = Path.ChangeExtension(inputFile, null);
 
-  var preprocessingExitCode = Preprocessor.Run(inputFile, preprocessedFile);
-  if (preprocessingExitCode != ExitCode.Success)
-  {
-    exitCode = preprocessingExitCode;
-    return null;
-  }
-
-  return new CompilerArguments(preprocessedFile, assemblyFile, outputFile, lexOnly, assemblyOnly);
+  return new CompilerArguments(inputFile, preprocessedFile, assemblyFile, outputFile, lexOnly, assemblyOnly);
 }
 
 static CommandLine CreateCommandLine()
@@ -165,6 +167,7 @@ internal sealed record CommandLine
 
 internal sealed record CompilerArguments
 (
+  string InputFile,
   string PreprocessedFile,
   string AssemblyFile,
   string OutputFile,

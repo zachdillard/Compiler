@@ -10,6 +10,14 @@
   reports the compiler version without requiring GCC.
 - MIT license and chapter-based versioning policy.
 
+### Fixed
+
+- Out-of-range integer constants report a diagnostic and exit with status `1`
+  instead of crashing, including in lex-only mode.
+- Partial preprocessed output is cleaned up after preprocessing failures.
+- File access and intermediate-file cleanup exceptions, including assembly
+  cleanup exceptions, report diagnostics instead of crashing.
+
 ### Limitations
 
 - Later chapter features and extra credit are not implemented.

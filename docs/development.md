@@ -118,6 +118,11 @@ require a separate Debug build when testing Release. They require GCC on
 They check CLI behavior, diagnostics, intermediate-file cleanup, and execution
 of generated programs.
 
+Regression cases cover out-of-range integer constants in normal and lex-only
+modes, partial preprocessing output, missing GCC, and file-write and cleanup
+errors. Some failure-path tests use a temporary GCC stub on `PATH` to reproduce
+partial output and assembly cleanup failures deterministically.
+
 ### Continuous integration
 
 [GitHub Actions](../.github/workflows/compiler-tests.yml) runs these builds and

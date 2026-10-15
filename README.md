@@ -63,7 +63,12 @@ dotnet run --project src/Compiler.csproj -- -S data/return_2.c
 Assembly-only mode leaves `data/return_2.s`. Successful executable builds remove
 intermediate `.i` and `.s` files; assembly-only and lex-only modes remove `.i`.
 Lex-only mode exits with `0` for valid tokens and a nonzero status on an error.
-Integer constants must fit in a C# `int`.
+Integer constants must fit in a C# `int`; out-of-range constants report an error
+and exit with status `1` in both normal and lex-only modes.
+
+Cleanup is also attempted after preprocessing fails. If a compiler file cannot
+be read, written, or removed, the compiler reports a diagnostic on standard error
+and exits with status `1`.
 
 ## Testing
 

@@ -1,9 +1,11 @@
 using Helpers;
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using Xunit;
 
 namespace CompilerIntegrationTests;
 
+[SupportedOSPlatform("macos")]
 public sealed class DriverTests
 {
   [Fact]
@@ -153,6 +155,28 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
+  [Theory]
+  [InlineData("2147483648", false)]
+  [InlineData("999999999999999999999999", false)]
+  [InlineData("2147483648", true)]
+  [InlineData("999999999999999999999999", true)]
+  public void OverflowingIntegerFailsWithDiagnosticAndCleansIntermediateFiles(string constant, bool lexOnly)
+  {
+    using var fixture = new TestFixture($"int main(void) {{ return {constant}; }}");
+
+    var result = lexOnly
+      ? RunCompiler("--lex", fixture.SourcePath)
+      : RunCompiler(fixture.SourcePath);
+
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Empty(result.StandardOutput);
+    Assert.Equal($"Error: integer constant is outside the supported int range.{Environment.NewLine}",
+      result.StandardError);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
   [Fact]
   public void LexOnlyStopsBeforeParsing()
   {
@@ -229,6 +253,114 @@ public sealed class DriverTests
 
     Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("header-that-does-not-exist.h", result.StandardError);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Fact]
+  public void PreprocessingFailureRemovesPartialOutput()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+    string gccDirectory = fixture.CreateGcc("""
+      /bin/cp "$3" "$5"
+      echo 'preprocessing failed' >&2
+      exit 1
+      """);
+
+    var result = RunCompilerWithEnvironment([fixture.SourcePath], gccDirectory: gccDirectory);
+
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal($"preprocessing failed{Environment.NewLine}", result.StandardError);
+    Assert.Empty(result.StandardOutput);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Fact]
+  public void PreprocessedCleanupFailureReturnsDiagnostic()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+    Directory.CreateDirectory(fixture.PreprocessedPath);
+
+    var result = RunCompiler(fixture.SourcePath);
+
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Contains("Error: could not access a compiler file:", result.StandardError);
+    Assert.DoesNotContain("Unhandled exception", result.StandardError);
+    Assert.Empty(result.StandardOutput);
+    Assert.True(Directory.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Fact]
+  public void AssemblyWriteFailureReturnsDiagnosticAndCleansPreprocessedFile()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+    Directory.CreateDirectory(fixture.AssemblyPath);
+
+    var result = RunCompiler("-S", fixture.SourcePath);
+
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Contains("Error: could not access a compiler file:", result.StandardError);
+    Assert.DoesNotContain("Unhandled exception", result.StandardError);
+    Assert.Empty(result.StandardOutput);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.True(Directory.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Theory]
+  [InlineData(0)]
+  [InlineData(1)]
+  public void AssemblyCleanupFailureReturnsDiagnostic(int assemblerExitCode)
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+    string gccDirectory = fixture.CreateGcc($$"""
+      if [ "$1" = '-E' ]; then
+        /bin/cp "$3" "$5"
+        exit 0
+      fi
+      for argument in "$@"; do
+        case "$argument" in
+          *.s)
+            /bin/rm "$argument"
+            /bin/mkdir "$argument"
+            ;;
+        esac
+      done
+      echo 'assembler diagnostic' >&2
+      exit {{assemblerExitCode}}
+      """);
+
+    var result = RunCompilerWithEnvironment([fixture.SourcePath], gccDirectory: gccDirectory);
+
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Contains("assembler diagnostic", result.StandardError);
+    Assert.Contains("Error: could not access a compiler file:", result.StandardError);
+    Assert.DoesNotContain("Unhandled exception", result.StandardError);
+    Assert.Empty(result.StandardOutput);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.True(Directory.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Fact]
+  public void MissingGccFailsWithDiagnostic()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+
+    var result = RunCompilerWithoutGcc(fixture.SourcePath);
+
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal($"Error: could not start gcc. Ensure gcc is installed and available on PATH.{Environment.NewLine}",
+      result.StandardError);
+    Assert.Empty(result.StandardOutput);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
   [Fact]
@@ -280,7 +412,7 @@ public sealed class DriverTests
     return RunCompilerWithEnvironment(arguments, withoutGcc: true);
   }
 
-  private static ProcessResult RunCompilerWithEnvironment(string[] arguments, bool withoutGcc)
+  private static ProcessResult RunCompilerWithEnvironment(string[] arguments, bool withoutGcc = false, string? gccDirectory = null)
   {
     var compilerAssembly = typeof(Lexer).Assembly.Location;
     var testAssembly = typeof(DriverTests).Assembly.Location;
@@ -311,6 +443,8 @@ public sealed class DriverTests
 
     if (withoutGcc)
       startInfo.Environment["PATH"] = string.Empty;
+    else if (gccDirectory is not null)
+      startInfo.Environment["PATH"] = gccDirectory;
 
     using var process = Process.Start(startInfo);
     Assert.NotNull(process);
@@ -339,6 +473,15 @@ public sealed class DriverTests
     public string PreprocessedPath => Path.ChangeExtension(SourcePath, ".i");
     public string AssemblyPath => Path.ChangeExtension(SourcePath, ".s");
     public string ExecutablePath => Path.ChangeExtension(SourcePath, null);
+
+    public string CreateGcc(string script)
+    {
+      string gccDirectory = Directory.CreateDirectory(Path.Combine(directory, "tools")).FullName;
+      string gccPath = Path.Combine(gccDirectory, "gcc");
+      File.WriteAllText(gccPath, $"#!/bin/sh\nset -eu\n{script}\n");
+      File.SetUnixFileMode(gccPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+      return gccDirectory;
+    }
 
     public void Dispose()
     {
