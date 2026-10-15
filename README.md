@@ -6,7 +6,16 @@ This is a learning project, with more language features added as work progresses
 through the book.
 
 The custom compiler currently completes chapter one: a single `int` function
-with `void` parameters that returns an integer constant.
+with `void` parameters that returns an integer constant, like the included
+[data/return_2.c](data/return_2.c):
+
+```c
+int main(void) {
+    return 2;
+}
+```
+
+Compiling this program creates an executable that returns `2` to your shell.
 
 ## Prerequisites
 
@@ -28,7 +37,7 @@ cd compiler
 dotnet build -m:1 --disable-build-servers
 dotnet run --project src/Compiler.csproj -- data/return_2.c
 ./data/return_2
-echo $?
+echo $? # Expected: 2
 ```
 
 The compiler creates `data/return_2` beside the source file. The generated
@@ -36,25 +45,21 @@ program prints nothing and exits with status `2`, which `echo $?` displays.
 
 ## Usage
 
-Pass a source path to compile it, adding options after `--`:
-
-```sh
-dotnet run --project src/Compiler.csproj -- [options] <source-file>
-```
-
-| Option | What it does |
-| --- | --- |
-| `--version` | Print the compiler version without invoking GCC. Use alone, without a source path. |
-| `--lex` | Stop after lexing; print no tokens and produce no assembly or executable. |
-| `-S` | Write custom assembly beside the source file, without linking. |
-| `-gcc` | Use the temporary GCC-backed compiler instead of custom code generation. |
-| `-gcc -S` | Write GCC assembly without linking; either option order works. |
-
+Run commands from the repository root. The `--` separates `dotnet run` options
+from the arguments passed to the compiler: its options and one C source path.
 For example, to inspect the custom compiler's assembly:
 
 ```sh
 dotnet run --project src/Compiler.csproj -- -S data/return_2.c
 ```
+
+| Option | What it does |
+| --- | --- |
+| `--version` | Print the version without GCC; use alone, with no source path. |
+| `--lex` | Check tokens without printing them or generating output files. |
+| `-S` | Write custom assembly without linking an executable. |
+| `-gcc` | Use the temporary GCC-backed compiler. |
+| `-gcc -S` | Write GCC assembly; either option order works. |
 
 Assembly-only modes leave `data/return_2.s`. Successful executable builds remove
 intermediate `.i` and `.s` files; assembly-only and lex-only modes remove `.i`.
@@ -76,13 +81,9 @@ Debug/Release checks, and CI.
 ## Further reading
 
 - [Compiler architecture](docs/architecture.md): grammar, pipeline, and compiler stages.
-- [Development guide](docs/development.md): setup, debugging, formatting, and testing.
+- [Development guide](docs/development.md): setup, debugging, testing, and versioning.
 - [Concepts guide](concepts/README.md): standalone C# examples to explore.
 - [Changelog](CHANGELOG.md): release history and current limitations.
-
-Releases follow the book: `v0.N.0` completes chapter N and all earlier chapters;
-`v0.N.P` contains fixes within that scope. See the development guide for the
-[versioning policy](docs/development.md#versioning).
 
 ## License
 

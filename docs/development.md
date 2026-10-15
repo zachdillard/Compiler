@@ -28,6 +28,16 @@ x86-64 output:
 softwareupdate --install-rosetta
 ```
 
+With Git and the prerequisites installed, clone the repository and enter it:
+
+```sh
+git clone https://github.com/zachdillard/compiler.git
+cd compiler
+```
+
+If you already cloned it, open a terminal in that checkout's root directory
+(the folder containing `global.json`). Run the remaining setup commands there.
+
 Check the prerequisites before building:
 
 ```sh
@@ -36,8 +46,14 @@ gcc --version
 xcode-select -p
 ```
 
-Run `dotnet --version` inside the checkout so it uses `global.json`. The first
-project build or test run needs access to NuGet to restore test dependencies.
+Running `dotnet --version` inside the checkout checks SDK selection against
+`global.json`. If `dotnet` is missing or reports that no compatible SDK is
+installed, install the pinned RC1 SDK linked above, open a new terminal, and
+return to the checkout before trying again. If the error persists, use
+`dotnet --list-sdks` to check that the required SDK is installed.
+
+The first project build or test run needs access to NuGet to restore test
+dependencies.
 
 Build from the repository root with:
 
