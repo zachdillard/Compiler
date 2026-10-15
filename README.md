@@ -59,10 +59,8 @@ dotnet run --project src/Compiler.csproj -- -S data/return_2.c
 | `--version` | Print the version without GCC; use alone, with no source path. |
 | `--lex` | Check tokens without printing them or generating output files. |
 | `-S` | Write custom assembly without linking an executable. |
-| `-gcc` | Use the temporary GCC-backed compiler. |
-| `-gcc -S` | Write GCC assembly; either option order works. |
 
-Assembly-only modes leave `data/return_2.s`. Successful executable builds remove
+Assembly-only mode leaves `data/return_2.s`. Successful executable builds remove
 intermediate `.i` and `.s` files; assembly-only and lex-only modes remove `.i`.
 Lex-only mode exits with `0` for valid tokens and a nonzero status on an error.
 Integer constants must fit in a C# `int`.

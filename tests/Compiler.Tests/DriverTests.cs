@@ -10,7 +10,7 @@ public sealed class DriverTests
   {
     var result = RunCompilerWithoutGcc("--version");
 
-    Assert.Equal(0, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Equal($"Compiler 0.1.0{Environment.NewLine}", result.StandardOutput);
     Assert.Empty(result.StandardError);
   }
@@ -27,7 +27,7 @@ public sealed class DriverTests
   {
     var result = RunCompilerWithoutGcc(first, second);
 
-    Assert.Equal(1, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Contains("Usage: Compiler", result.StandardError);
   }
@@ -37,8 +37,8 @@ public sealed class DriverTests
   {
     var result = RunCompiler();
 
-    Assert.Equal(1, result.ExitCode);
-    Assert.Contains("Usage: Compiler [-gcc] [-S] [--lex] <source-file>", result.StandardError);
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
   }
 
   [Theory]
@@ -48,10 +48,10 @@ public sealed class DriverTests
   {
     var result = RunCompilerWithoutGcc(option);
 
-    Assert.Equal(0, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
     Assert.Contains("<source-file>", result.StandardOutput);
-    Assert.Contains("-gcc", result.StandardOutput);
+    Assert.DoesNotContain("-gcc", result.StandardOutput);
     Assert.Contains("-S", result.StandardOutput);
     Assert.Contains("--lex", result.StandardOutput);
     Assert.Contains("--version", result.StandardOutput);
@@ -66,8 +66,8 @@ public sealed class DriverTests
   {
     var result = RunCompiler(argument);
 
-    Assert.Equal(1, result.ExitCode);
-    Assert.Contains("Usage: Compiler [-gcc] [-S] [--lex] <source-file>", result.StandardError);
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
   }
 
   [Fact]
@@ -77,7 +77,7 @@ public sealed class DriverTests
 
     var result = RunCompiler("--lex", fixture.SourcePath);
 
-    Assert.Equal(0, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
@@ -85,54 +85,27 @@ public sealed class DriverTests
   }
 
   [Fact]
-  public void AssemblyOnlyCompilationCreatesAssemblyWithoutExecutable()
-  {
-    using var fixture = new TestFixture("int main(void) { return 7; }");
-
-    var result = RunCompiler("-gcc", "-S", fixture.SourcePath);
-
-    Assert.Equal(0, result.ExitCode);
-    Assert.True(File.Exists(fixture.AssemblyPath));
-    Assert.False(File.Exists(fixture.ExecutablePath));
-    Assert.False(File.Exists(fixture.PreprocessedPath));
-  }
-
-  [Fact]
-  public void AssemblyOnlyGccCompilationAcceptsFlagsInEitherOrder()
-  {
-    using var fixture = new TestFixture("int main(void) { return 7; }");
-
-    var result = RunCompiler("-S", "-gcc", fixture.SourcePath);
-
-    Assert.Equal(0, result.ExitCode);
-    Assert.True(File.Exists(fixture.AssemblyPath));
-    Assert.False(File.Exists(fixture.PreprocessedPath));
-  }
-
-  [Fact]
   public void SourceFileCanAppearBetweenOptions()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompiler("-S", fixture.SourcePath, "-gcc");
+    var result = RunCompiler("-S", fixture.SourcePath, "--lex");
 
-    Assert.Equal(0, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
-    Assert.True(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
-  [Theory]
-  [InlineData(false)]
-  [InlineData(true)]
-  public void NormalCompilationProducesExecutableAndRemovesIntermediateFiles(bool useGcc)
+  [Fact]
+  public void NormalCompilationProducesExecutableAndRemovesIntermediateFiles()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = useGcc ? RunCompiler("-gcc", fixture.SourcePath) : RunCompiler(fixture.SourcePath);
+    var result = RunCompiler(fixture.SourcePath);
 
-    Assert.Equal(0, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.True(File.Exists(fixture.ExecutablePath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
@@ -158,7 +131,7 @@ public sealed class DriverTests
 
     var result = RunCompiler("-S", fixture.SourcePath);
 
-    Assert.Equal(0, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.Equal("\t.globl _main\n_main:\n\tmovl $7, %eax\n\tret\n".Replace("\n", Environment.NewLine),
@@ -173,7 +146,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(fixture.SourcePath);
 
-    Assert.Equal(1, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Contains("Expected Semicolon", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
@@ -186,7 +159,7 @@ public sealed class DriverTests
 
     var result = RunCompiler("--lex", fixture.SourcePath);
 
-    Assert.Equal(0, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
@@ -196,9 +169,9 @@ public sealed class DriverTests
   {
     using var fixture = new TestFixture("int main(void) { return 7 }");
 
-    var result = RunCompiler("-gcc", "-S", "--lex", fixture.SourcePath);
+    var result = RunCompiler("-S", "--lex", fixture.SourcePath);
 
-    Assert.Equal(0, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Empty(result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
@@ -207,7 +180,6 @@ public sealed class DriverTests
   }
 
   [Theory]
-  [InlineData("-gcc")]
   [InlineData("-S")]
   [InlineData("--lex")]
   public void DuplicateFlagsPrintUsageAndFail(string option)
@@ -216,15 +188,16 @@ public sealed class DriverTests
 
     var result = RunCompiler(option, option, fixture.SourcePath);
 
-    Assert.Equal(1, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
-    Assert.Contains("Usage: Compiler [-gcc] [-S] [--lex] <source-file>", result.StandardError);
+    Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
   [Theory]
+  [InlineData("-gcc")]
   [InlineData("--gcc")]
   [InlineData("-s")]
   [InlineData("--unknown")]
@@ -237,9 +210,9 @@ public sealed class DriverTests
 
     var result = RunCompiler(argument, fixture.SourcePath);
 
-    Assert.Equal(1, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
-    Assert.Contains("Usage: Compiler [-gcc] [-S] [--lex] <source-file>", result.StandardError);
+    Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
@@ -253,7 +226,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(fixture.SourcePath);
 
-    Assert.NotEqual(0, result.ExitCode);
+    Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("header-that-does-not-exist.h", result.StandardError);
   }
 
@@ -262,11 +235,26 @@ public sealed class DriverTests
   {
     using var fixture = new TestFixture("int main( { return 0; }");
 
-    var result = RunCompiler("-gcc", fixture.SourcePath);
+    var result = RunCompiler(fixture.SourcePath);
 
-    Assert.NotEqual(0, result.ExitCode);
+    Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("error", result.StandardError, StringComparison.OrdinalIgnoreCase);
     Assert.False(File.Exists(fixture.PreprocessedPath));
+  }
+
+  [Fact]
+  public void LinkerFailurePrintsDriverErrorAndRemovesIntermediateFiles()
+  {
+    using var fixture = new TestFixture("int other(void) { return 7; }");
+
+    var result = RunCompiler(fixture.SourcePath);
+
+    Assert.NotEqual(ExitCode.Success, result.ExitCode);
+    Assert.Contains("Error: could not assemble and link the program.", result.StandardError);
+    Assert.Empty(result.StandardOutput);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
   [Fact]
@@ -277,7 +265,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(fixture.SourcePath);
 
-    Assert.NotEqual(0, result.ExitCode);
+    Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("No such file or directory", result.StandardError, StringComparison.OrdinalIgnoreCase);
   }
 

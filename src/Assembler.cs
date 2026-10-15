@@ -40,12 +40,12 @@ public class Assembler
     catch (Win32Exception)
     {
       Console.Error.WriteLine("Error: could not start gcc. Ensure gcc is installed and available on PATH.");
-      return 1;
+      return ExitCode.Failure;
     }
     catch (InvalidOperationException)
     {
       Console.Error.WriteLine("Error: could not start gcc.");
-      return 1;
+      return ExitCode.Failure;
     }
     finally
     {

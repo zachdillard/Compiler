@@ -19,7 +19,7 @@ trailing tokens. Later chapters' language features are not implemented yet.
 
 ## Pipeline
 
-The default custom compiler pipeline is:
+The compiler pipeline is:
 
 ```mermaid
 flowchart TD
@@ -51,14 +51,8 @@ Each stage has one job:
 
 Compiler stages and token types use the global namespace. The C AST uses `C`,
 and the assembly AST uses `Assembly`. Tests use `CompilerIntegrationTests`.
-`Driver.cs` handles command-line options and orchestrates both compiler modes
-directly, including preprocessing-file cleanup and compiler diagnostics.
-
-## GCC-backed mode
-
-The `-gcc` option selects the temporary GCC-backed compiler. GCC handles
-preprocessing, assembly generation, assembly, and linking to produce an
-executable beside the input file.
+`Driver.cs` constructs command-line options in a static method and orchestrates
+the compiler pipeline, including preprocessing-file cleanup and compiler diagnostics.
 
 See the [README usage instructions](../README.md#usage) for compiler options
 and examples.
