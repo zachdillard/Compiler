@@ -2,8 +2,19 @@
 
 A small C compiler built with C# and .NET 11 RC1, following
 [*Writing a C Compiler*](https://nostarch.com/writing-c-compiler) by Nora Sandler.
-This is a learning project, with more language features added as work progresses
-through the book.
+This is a learning and experimentation project, with more language features added
+as work progresses through the book.
+
+## Purpose
+
+The goals of this project are to:
+
+- Learn how compilers work by building one step by step.
+- Showcase and explore .NET 11 features.
+- Learn more about CI/CD through hands-on practice.
+- Experiment with different development methodologies and agentic engineering.
+
+## Current capabilities
 
 The custom compiler currently completes chapter one: a single `int` function
 with `void` parameters that returns an integer constant, like the included
