@@ -1,56 +1,90 @@
 using System.ComponentModel;
+using System.CommandLine;
+using System.CommandLine.Help;
 using System.Diagnostics;
 
 const string usage = "Usage: Compiler [-gcc] [-S] [--lex] <source-file>";
 
-if (args is ["--version"])
+var sourceFileArgument = new Argument<string>("source-file")
 {
+  Description = "The C source file to compile.",
+  Arity = ArgumentArity.ExactlyOne
+};
+sourceFileArgument.Validators.Add(result =>
+{
+  if (result.Tokens.Any(token => token.Value.StartsWith('-')))
+    result.AddError("Expected a source file path, not an option.");
+});
+
+var gccOption = new Option<bool>("-gcc")
+{
+  Description = "Use the temporary GCC-backed compiler.",
+  Arity = ArgumentArity.Zero
+};
+
+var assemblyOnlyOption = new Option<bool>("-S")
+{
+  Description = "Write assembly without linking an executable.",
+  Arity = ArgumentArity.Zero
+};
+
+var lexOnlyOption = new Option<bool>("--lex")
+{
+  Description = "Check tokens without generating output files.",
+  Arity = ArgumentArity.Zero
+};
+
+foreach (var option in new[] { gccOption, assemblyOnlyOption, lexOnlyOption })
+{
+  option.Validators.Add(result =>
+  {
+    if (result.IdentifierTokenCount > 1)
+      result.AddError($"Option '{option.Name}' cannot be repeated.");
+  });
+}
+
+var command = new RootCommand("A small C compiler following Writing a C Compiler.")
+{
+  sourceFileArgument,
+  gccOption,
+  assemblyOnlyOption,
+  lexOnlyOption
+};
+
+var versionOption = command.Options.OfType<VersionOption>().Single();
+
+var result = command.Parse(args, new ParserConfiguration
+{
+  EnablePosixBundling = false,
+  ResponseFileTokenReplacer = null
+});
+
+if (result.GetResult(versionOption) is not null)
+{
+  if (args is not ["--version"])
+  {
+    Console.Error.WriteLine(usage);
+    return 1;
+  }
+
   var version = typeof(Lexer).Assembly.GetName().Version!;
   Console.WriteLine($"Compiler {version.ToString(3)}");
   return 0;
 }
 
-if (args.Length < 1 || args.Length > 3)
+if (result.Action is HelpAction)
+  return result.Invoke();
+
+if (result.Errors.Count != 0)
 {
   Console.Error.WriteLine(usage);
   return 1;
 }
 
-var assemblyOnly = false;
-var lexOnly = false;
-var useGcc = false;
-string? inputFile = null;
-
-foreach (var argument in args)
-{
-  switch (argument)
-  {
-    case "-S" when !assemblyOnly:
-      assemblyOnly = true;
-      break;
-    case "--lex" when !lexOnly:
-      lexOnly = true;
-      break;
-    case "-gcc" when !useGcc:
-      useGcc = true;
-      break;
-    case var _ when argument.StartsWith('-'):
-      Console.Error.WriteLine(usage);
-      return 1;
-    case var _ when inputFile is null:
-      inputFile = argument;
-      break;
-    case var _:
-      Console.Error.WriteLine(usage);
-      return 1;
-  }
-}
-
-if (inputFile is null)
-{
-  Console.Error.WriteLine(usage);
-  return 1;
-}
+var assemblyOnly = result.GetValue(assemblyOnlyOption);
+var lexOnly = result.GetValue(lexOnlyOption);
+var useGcc = result.GetValue(gccOption);
+var inputFile = result.GetRequiredValue(sourceFileArgument);
 
 var preprocessedFile = Path.ChangeExtension(inputFile, ".i");
 var assemblyFile = Path.ChangeExtension(inputFile, ".s");

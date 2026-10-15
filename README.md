@@ -55,6 +55,7 @@ dotnet run --project src/Compiler.csproj -- -S data/return_2.c
 
 | Option | What it does |
 | --- | --- |
+| `--help`, `-h` | Show generated help for the compiler's arguments and options. |
 | `--version` | Print the version without GCC; use alone, with no source path. |
 | `--lex` | Check tokens without printing them or generating output files. |
 | `-S` | Write custom assembly without linking an executable. |

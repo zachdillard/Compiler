@@ -3,7 +3,7 @@ using Xunit;
 
 namespace CompilerIntegrationTests;
 
-public sealed class CompilerIntegrationTests
+public sealed class DriverTests
 {
   [Fact]
   public void VersionDoesNotRequireGcc()
@@ -17,6 +17,10 @@ public sealed class CompilerIntegrationTests
 
   [Theory]
   [InlineData("--version", "-S")]
+  [InlineData("--version", "-gcc")]
+  [InlineData("--version", "--lex")]
+  [InlineData("--version", "--help")]
+  [InlineData("--version", "--version")]
   [InlineData("--version", "missing.c")]
   [InlineData("missing.c", "--version")]
   public void VersionRejectsOtherArguments(string first, string second)
@@ -38,9 +42,26 @@ public sealed class CompilerIntegrationTests
   }
 
   [Theory]
+  [InlineData("--help")]
+  [InlineData("-h")]
+  public void HelpDescribesOptionsWithoutGcc(string option)
+  {
+    var result = RunCompilerWithoutGcc(option);
+
+    Assert.Equal(0, result.ExitCode);
+    Assert.Empty(result.StandardError);
+    Assert.Contains("<source-file>", result.StandardOutput);
+    Assert.Contains("-gcc", result.StandardOutput);
+    Assert.Contains("-S", result.StandardOutput);
+    Assert.Contains("--lex", result.StandardOutput);
+    Assert.Contains("--version", result.StandardOutput);
+  }
+
+  [Theory]
   [InlineData("-S")]
   [InlineData("--assembly")]
   [InlineData("-unknown")]
+  [InlineData("--version=false")]
   public void MalformedArgumentsPrintUsageAndFail(string argument)
   {
     var result = RunCompiler(argument);
@@ -85,6 +106,20 @@ public sealed class CompilerIntegrationTests
 
     Assert.Equal(0, result.ExitCode);
     Assert.True(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+  }
+
+  [Fact]
+  public void SourceFileCanAppearBetweenOptions()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+
+    var result = RunCompiler("-S", fixture.SourcePath, "-gcc");
+
+    Assert.Equal(0, result.ExitCode);
+    Assert.Empty(result.StandardError);
+    Assert.True(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
@@ -157,14 +192,57 @@ public sealed class CompilerIntegrationTests
   }
 
   [Fact]
-  public void DuplicateFlagsPrintUsageAndFail()
+  public void LexOnlyAcceptsAllFlagsAndStopsBeforeParsing()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7 }");
+
+    var result = RunCompiler("-gcc", "-S", "--lex", fixture.SourcePath);
+
+    Assert.Equal(0, result.ExitCode);
+    Assert.Empty(result.StandardOutput);
+    Assert.Empty(result.StandardError);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Theory]
+  [InlineData("-gcc")]
+  [InlineData("-S")]
+  [InlineData("--lex")]
+  public void DuplicateFlagsPrintUsageAndFail(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompiler("-gcc", "-gcc", fixture.SourcePath);
+    var result = RunCompiler(option, option, fixture.SourcePath);
 
     Assert.Equal(1, result.ExitCode);
+    Assert.Empty(result.StandardOutput);
     Assert.Contains("Usage: Compiler [-gcc] [-S] [--lex] <source-file>", result.StandardError);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Theory]
+  [InlineData("--gcc")]
+  [InlineData("-s")]
+  [InlineData("--unknown")]
+  [InlineData("-S=false")]
+  [InlineData("--lex=true")]
+  [InlineData("extra.c")]
+  public void InvalidArgumentsWithSourcePrintUsageAndProduceNoFiles(string argument)
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+
+    var result = RunCompiler(argument, fixture.SourcePath);
+
+    Assert.Equal(1, result.ExitCode);
+    Assert.Empty(result.StandardOutput);
+    Assert.Contains("Usage: Compiler [-gcc] [-S] [--lex] <source-file>", result.StandardError);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
   [Fact]
@@ -216,7 +294,7 @@ public sealed class CompilerIntegrationTests
   private static ProcessResult RunCompilerWithEnvironment(string[] arguments, bool withoutGcc)
   {
     var compilerAssembly = typeof(Lexer).Assembly.Location;
-    var testAssembly = typeof(CompilerIntegrationTests).Assembly.Location;
+    var testAssembly = typeof(DriverTests).Assembly.Location;
     var runtimeConfiguration = Path.ChangeExtension(testAssembly, ".runtimeconfig.json");
     var dependencies = Path.ChangeExtension(testAssembly, ".deps.json");
 
