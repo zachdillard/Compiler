@@ -1,3 +1,6 @@
+using Assembly = Syntax.Assembly;
+using C = Syntax.C;
+
 public class Generator
 {
   public static Assembly.Program Run(C.Program program)

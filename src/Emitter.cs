@@ -1,4 +1,5 @@
 using System.Text;
+using Assembly = Syntax.Assembly;
 
 public class Emitter
 {

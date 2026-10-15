@@ -1,5 +1,8 @@
+using Helpers;
 using System.CommandLine;
 using System.CommandLine.Help;
+using Assembly = Syntax.Assembly;
+using C = Syntax.C;
 
 var compilerArgs = CreateCompilerArguments(args, out var exitCode);
 if (compilerArgs is null)

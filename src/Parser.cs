@@ -1,3 +1,5 @@
+using C = Syntax.C;
+
 public class Parser
 {
   public static C.Program Run(List<Token> tokens)

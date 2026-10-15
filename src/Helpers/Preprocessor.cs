@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Diagnostics;
 
+namespace Helpers;
+
 public class Preprocessor
 {
   public static int Run(string inputFile, string preprocessedFile)

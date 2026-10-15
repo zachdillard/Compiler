@@ -1,3 +1,5 @@
+namespace Helpers;
+
 public static class ExitCode
 {
   public const int Success = 0;

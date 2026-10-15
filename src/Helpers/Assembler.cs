@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Diagnostics;
 
+namespace Helpers;
+
 public class Assembler
 {
   public static int Run(string assemblyFile, string outputFile, bool x86_64 = false)

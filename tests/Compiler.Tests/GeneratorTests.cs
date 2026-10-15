@@ -1,4 +1,6 @@
 using Xunit;
+using Assembly = Syntax.Assembly;
+using C = Syntax.C;
 
 namespace CompilerIntegrationTests;
 

@@ -49,8 +49,10 @@ Each stage has one job:
 
 ## C# namespaces
 
-Compiler stages and token types use the global namespace. The C AST uses `C`,
-and the assembly AST uses `Assembly`. Tests use `CompilerIntegrationTests`.
+The custom compiler stages and token types use the global namespace. The C AST
+and assembly AST live in `src/Syntax/` and use `Syntax.C` and `Syntax.Assembly`.
+The GCC stages (`Preprocessor` and `Assembler`) and `ExitCode` live in
+`src/Helpers/` and use `Helpers`. Tests use `CompilerIntegrationTests`.
 `Driver.cs` constructs command-line options in a static method and orchestrates
 the compiler pipeline, including preprocessing-file cleanup and compiler diagnostics.
 

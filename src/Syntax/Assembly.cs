@@ -1,4 +1,4 @@
-namespace Assembly;
+namespace Syntax.Assembly;
 
 public record Program(Function Function);
 public record Function(string Identifer, List<Instruction> Instructions);

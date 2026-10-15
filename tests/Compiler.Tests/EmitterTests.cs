@@ -1,4 +1,5 @@
 using Xunit;
+using Assembly = Syntax.Assembly;
 
 namespace CompilerIntegrationTests;
 
