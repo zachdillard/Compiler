@@ -17,13 +17,19 @@ try
       return exitCode;
 
     List<Token> tokens = Lexer.Run(File.ReadAllText(compilerArgs.PreprocessedFile));
-    if (!compilerArgs.LexOnly)
-    {
-      C.Program program = Parser.Run(tokens);
-      Assembly.Program assembly = Generator.Run(program);
-      string output = Emitter.Run(assembly);
-      Writer.Run(output, compilerArgs.AssemblyFile);
-    }
+    if (compilerArgs.LexOnly)
+      return ExitCode.Success;
+
+    C.Program program = Parser.Run(tokens);
+    if (compilerArgs.ParseOnly)
+      return ExitCode.Success;
+
+    Assembly.Program assembly = Generator.Run(program);
+    if (compilerArgs.CodegenOnly)
+      return ExitCode.Success;
+
+    string output = Emitter.Run(assembly);
+    Writer.Run(output, compilerArgs.AssemblyFile);
   }
   catch (InvalidOperationException exception)
   {
@@ -40,7 +46,7 @@ try
     File.Delete(compilerArgs.PreprocessedFile);
   }
 
-  if (compilerArgs.LexOnly || compilerArgs.AssemblyOnly)
+  if (compilerArgs.AssemblyOnly)
     return ExitCode.Success;
 
   exitCode = Assembler.Run(compilerArgs.AssemblyFile, compilerArgs.OutputFile, x86_64: true);
@@ -63,7 +69,7 @@ catch (UnauthorizedAccessException exception)
 static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCode)
 {
   exitCode = ExitCode.Success;
-  const string Usage = "Usage: Compiler [-S] [--lex] <source-file>";
+  const string Usage = "Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>";
 
   var commandLine = CreateCommandLine();
 
@@ -104,6 +110,15 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
 
   var assemblyOnly = result.GetValue(commandLine.AssemblyOnlyOption);
   var lexOnly = result.GetValue(commandLine.LexOnlyOption);
+  var parseOnly = result.GetValue(commandLine.ParseOnlyOption);
+  var codegenOnly = result.GetValue(commandLine.CodegenOnlyOption);
+  if (new[] { lexOnly, parseOnly, codegenOnly, assemblyOnly }.Count(selected => selected) > 1)
+  {
+    Console.Error.WriteLine(Usage);
+    exitCode = ExitCode.Failure;
+    return null;
+  }
+
   var inputFile = result.GetRequiredValue(commandLine.SourceFileArgument);
 
   if (Path.GetExtension(inputFile) != ".c")
@@ -117,7 +132,17 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
   var assemblyFile = Path.ChangeExtension(inputFile, ".s");
   var outputFile = Path.ChangeExtension(inputFile, null);
 
-  return new CompilerArguments(inputFile, preprocessedFile, assemblyFile, outputFile, lexOnly, assemblyOnly);
+  return new CompilerArguments
+  (
+    inputFile,
+    preprocessedFile,
+    assemblyFile,
+    outputFile,
+    lexOnly,
+    parseOnly,
+    codegenOnly,
+    assemblyOnly
+  );
 }
 
 static CommandLine CreateCommandLine()
@@ -145,7 +170,19 @@ static CommandLine CreateCommandLine()
     Arity = ArgumentArity.Zero
   };
 
-  foreach (var option in new[] { assemblyOnlyOption, lexOnlyOption })
+  var parseOnlyOption = new Option<bool>("--parse")
+  {
+    Description = "Parse the C program without generating output files.",
+    Arity = ArgumentArity.Zero
+  };
+
+  var codegenOnlyOption = new Option<bool>("--codegen")
+  {
+    Description = "Generate the assembly AST without emitting output files.",
+    Arity = ArgumentArity.Zero
+  };
+
+  foreach (var option in new[] { assemblyOnlyOption, lexOnlyOption, parseOnlyOption, codegenOnlyOption })
   {
     option.Validators.Add(result =>
     {
@@ -158,10 +195,20 @@ static CommandLine CreateCommandLine()
   {
     sourceFileArgument,
     assemblyOnlyOption,
-    lexOnlyOption
+    lexOnlyOption,
+    parseOnlyOption,
+    codegenOnlyOption
   };
 
-  return new CommandLine(command, sourceFileArgument, assemblyOnlyOption, lexOnlyOption);
+  return new CommandLine
+  (
+    command,
+    sourceFileArgument,
+    assemblyOnlyOption,
+    lexOnlyOption,
+    parseOnlyOption,
+    codegenOnlyOption
+  );
 }
 
 internal sealed record CommandLine
@@ -169,7 +216,9 @@ internal sealed record CommandLine
   RootCommand Command,
   Argument<string> SourceFileArgument,
   Option<bool> AssemblyOnlyOption,
-  Option<bool> LexOnlyOption
+  Option<bool> LexOnlyOption,
+  Option<bool> ParseOnlyOption,
+  Option<bool> CodegenOnlyOption
 );
 
 internal sealed record CompilerArguments
@@ -179,5 +228,7 @@ internal sealed record CompilerArguments
   string AssemblyFile,
   string OutputFile,
   bool LexOnly,
+  bool ParseOnly,
+  bool CodegenOnly,
   bool AssemblyOnly
 );

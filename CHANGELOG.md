@@ -4,6 +4,12 @@
 
 ### Added
 
+- `--parse` and `--codegen` stop after parsing and assembly AST generation without
+  emitting output files. Stage flags (`--lex`, `--parse`, `--codegen`, and `-S`)
+  are mutually exclusive.
+- Intermediate-stage book tests in CI and assembly-only output validation through
+  GCC assembly, linking, and execution.
+
 - Chapter one custom compiler: a single `int` function with `void` parameters
   returning an integer constant, emitted as macOS x86-64 assembly or an executable.
 - Shared version metadata in `Directory.Build.props` and `--version`, which

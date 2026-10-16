@@ -54,4 +54,8 @@ jobs:
         env:
           BOOK_TESTS_DIR: ${{ github.workspace }}/artifacts/writing-a-c-compiler-tests
           BUILD_CONFIGURATION: ${{ matrix.configuration }}
-        run: ./tests/book_tests.sh --chapter 1
+        run: |
+          ./tests/book_tests.sh --chapter 1
+          ./tests/book_tests.sh --chapter 1 --stage lex
+          ./tests/book_tests.sh --chapter 1 --stage parse
+          ./tests/book_tests.sh --chapter 1 --stage codegen

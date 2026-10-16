@@ -47,6 +47,11 @@ Each stage has one job:
 6. `Writer` saves the assembly to a `.s` file.
 7. `Assembler` uses GCC to assemble and link the executable.
 
+The mutually exclusive stage flags stop after lexing (`--lex`), parsing
+(`--parse`), assembly AST generation (`--codegen`), or writing assembly (`-S`).
+The first three produce no output files; `-S` leaves a `.s` file without
+assembling or linking. Every mode removes the preprocessed `.i` file.
+
 ## C# namespaces
 
 `Lexer`, `Parser`, `Generator`, `Emitter`, and token types use the global namespace.

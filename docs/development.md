@@ -116,10 +116,12 @@ that build's test runtime configuration and dependency manifest. They do not
 require a separate Debug build when testing Release. They require GCC on
 `PATH`; executing custom compiler output on Apple Silicon also requires Rosetta 2.
 They check CLI behavior, diagnostics, intermediate-file cleanup, and execution
-of generated programs.
+of generated programs, including assembling and linking the output of `-S`.
+Stage tests cover `--lex`, `--parse`, `--codegen`, and `-S`, including rejecting
+combinations and ensuring that stage-only modes do not invoke the assembler.
 
-Regression cases cover out-of-range integer constants in normal and lex-only
-modes, partial preprocessing output, missing GCC, and file-write and cleanup
+Regression cases cover out-of-range integer constants in every compilation
+mode, partial preprocessing output, missing GCC, and file-write and cleanup
 errors. Some failure-path tests use a temporary GCC stub on `PATH` to reproduce
 partial output and assembly cleanup failures deterministically.
 
@@ -130,7 +132,8 @@ tests on an Intel macOS runner for pushes to `main` and pull requests that chang
 `src/`, `tests/`, `global.json`, `Directory.Build.props`, `Compiler.slnx`, or the
 workflow itself. It can also be started manually. It installs the SDK from
 `global.json` and checks GCC availability. Each configuration also runs the
-chapter-one book suite against a separate checkout of the upstream tests.
+chapter-one book suite in full and at the lex, parse, and codegen stages against
+a separate checkout of the upstream tests.
 
 ### Optional book tests
 
@@ -144,11 +147,16 @@ git clone https://github.com/nlsandler/writing-a-c-compiler-tests.git \
 ```
 
 This runs the full chapter-one suite against the custom compiler, including
-valid programs and invalid lexing/parsing cases. To test only lexing, use:
+valid programs and invalid lexing/parsing cases. To test individual stages, use:
 
 ```sh
 ./tests/book_tests.sh --chapter 1 --stage lex
+./tests/book_tests.sh --chapter 1 --stage parse
+./tests/book_tests.sh --chapter 1 --stage codegen
 ```
+
+The runner has no assembly-only stage; the project integration tests validate
+`-S`, including linking its assembly with GCC and executing the result.
 
 Run the script from the compiler repository root so `dotnet` uses the SDK
 selection in `global.json` and the script resolves its paths correctly. It builds

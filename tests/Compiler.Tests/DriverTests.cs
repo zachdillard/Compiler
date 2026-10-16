@@ -22,6 +22,8 @@ public sealed class DriverTests
   [InlineData("--version", "-S")]
   [InlineData("--version", "-gcc")]
   [InlineData("--version", "--lex")]
+  [InlineData("--version", "--parse")]
+  [InlineData("--version", "--codegen")]
   [InlineData("--version", "--help")]
   [InlineData("--version", "--version")]
   [InlineData("--version", "missing.c")]
@@ -41,7 +43,7 @@ public sealed class DriverTests
     var result = RunCompiler();
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
-    Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
+    Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
   }
 
   [Theory]
@@ -57,11 +59,16 @@ public sealed class DriverTests
     Assert.DoesNotContain("-gcc", result.StandardOutput);
     Assert.Contains("-S", result.StandardOutput);
     Assert.Contains("--lex", result.StandardOutput);
+    Assert.Contains("--parse", result.StandardOutput);
+    Assert.Contains("--codegen", result.StandardOutput);
     Assert.Contains("--version", result.StandardOutput);
   }
 
   [Theory]
   [InlineData("-S")]
+  [InlineData("--lex")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
   [InlineData("--assembly")]
   [InlineData("-unknown")]
   [InlineData("--version=false")]
@@ -70,12 +77,14 @@ public sealed class DriverTests
     var result = RunCompiler(argument);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
-    Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
+    Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
   }
 
   [Theory]
   [InlineData("program.i", "")]
   [InlineData("program.i", "--lex")]
+  [InlineData("program.i", "--parse")]
+  [InlineData("program.i", "--codegen")]
   [InlineData("program.i", "-S")]
   [InlineData("program.s", "")]
   [InlineData("program.S", "")]
@@ -97,30 +106,45 @@ public sealed class DriverTests
     Assert.Equal(source, File.ReadAllText(fixture.SourcePath));
   }
 
-  [Fact]
-  public void LexOnlyProducesNoOutputAndRemovesPreprocessedFile()
+  [Theory]
+  [InlineData("--lex")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
+  public void IntermediateStageProducesNoOutputAndRemovesPreprocessedFile(string option)
   {
     using var fixture = new TestFixture("int main(void) {\n\treturn 7;\n}\n");
 
-    var result = RunCompiler("--lex", fixture.SourcePath);
+    var result = RunCompiler(option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
+    Assert.Empty(result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void SourceFileCanAppearBetweenOptions()
+  [Theory]
+  [InlineData("--lex", false)]
+  [InlineData("--lex", true)]
+  [InlineData("--parse", false)]
+  [InlineData("--parse", true)]
+  [InlineData("--codegen", false)]
+  [InlineData("--codegen", true)]
+  [InlineData("-S", false)]
+  [InlineData("-S", true)]
+  public void StageOptionCanAppearBeforeOrAfterSource(string option, bool sourceFirst)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompiler("-S", fixture.SourcePath, "--lex");
+    var result = sourceFirst
+      ? RunCompiler(fixture.SourcePath, option)
+      : RunCompiler(option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Empty(result.StandardOutput);
     Assert.Empty(result.StandardError);
-    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.Equal(option == "-S", File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
@@ -167,30 +191,72 @@ public sealed class DriverTests
   }
 
   [Fact]
-  public void CustomParserRejectsInvalidSyntaxAndCleansPreprocessedFile()
+  public void AssemblyOnlyOutputCanBeLinkedAndExecuted()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+    var result = RunCompiler("-S", fixture.SourcePath);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.False(File.Exists(fixture.ExecutablePath));
+
+    using var gcc = Process.Start(new ProcessStartInfo
+    {
+      FileName = "gcc",
+      ArgumentList = { "-arch", "x86_64", fixture.AssemblyPath, "-o", fixture.ExecutablePath },
+      UseShellExecute = false,
+      RedirectStandardOutput = true,
+      RedirectStandardError = true
+    });
+    Assert.NotNull(gcc);
+    string diagnostics = gcc.StandardError.ReadToEnd();
+    gcc.WaitForExit();
+    Assert.True(gcc.ExitCode == 0, diagnostics);
+
+    using var executable = Process.Start(new ProcessStartInfo
+    {
+      FileName = fixture.ExecutablePath,
+      UseShellExecute = false,
+      RedirectStandardOutput = true,
+      RedirectStandardError = true
+    });
+    Assert.NotNull(executable);
+    executable.WaitForExit();
+    Assert.Equal(7, executable.ExitCode);
+  }
+
+  [Theory]
+  [InlineData("")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
+  [InlineData("-S")]
+  public void CustomParserRejectsInvalidSyntaxAndCleansPreprocessedFile(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7 }");
 
-    var result = RunCompiler(fixture.SourcePath);
+    var result = RunCompilerWithOption(option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Contains("Expected Semicolon", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
   [Theory]
-  [InlineData("2147483648", false)]
-  [InlineData("999999999999999999999999", false)]
-  [InlineData("2147483648", true)]
-  [InlineData("999999999999999999999999", true)]
-  public void OverflowingIntegerFailsWithDiagnosticAndCleansIntermediateFiles(string constant, bool lexOnly)
+  [InlineData("2147483648", "")]
+  [InlineData("999999999999999999999999", "")]
+  [InlineData("2147483648", "--lex")]
+  [InlineData("999999999999999999999999", "--lex")]
+  [InlineData("2147483648", "--parse")]
+  [InlineData("999999999999999999999999", "--parse")]
+  [InlineData("2147483648", "--codegen")]
+  [InlineData("999999999999999999999999", "--codegen")]
+  [InlineData("2147483648", "-S")]
+  [InlineData("999999999999999999999999", "-S")]
+  public void OverflowingIntegerFailsWithDiagnosticAndCleansIntermediateFiles(string constant, string option)
   {
     using var fixture = new TestFixture($"int main(void) {{ return {constant}; }}");
 
-    var result = lexOnly
-      ? RunCompiler("--lex", fixture.SourcePath)
-      : RunCompiler(fixture.SourcePath);
+    var result = RunCompilerWithOption(option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -213,24 +279,39 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
-  [Fact]
-  public void LexOnlyAcceptsAllFlagsAndStopsBeforeParsing()
+  [Theory]
+  [InlineData("--lex", "--parse")]
+  [InlineData("--lex", "--codegen")]
+  [InlineData("--lex", "-S")]
+  [InlineData("--parse", "--codegen")]
+  [InlineData("--parse", "-S")]
+  [InlineData("--codegen", "-S")]
+  public void ConflictingStageFlagsFailBeforePreprocessingInEitherOrder(string first, string second)
   {
-    using var fixture = new TestFixture("int main(void) { return 7 }");
+    using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompiler("-S", "--lex", fixture.SourcePath);
+    foreach (string[] arguments in new[]
+    {
+      new[] { first, fixture.SourcePath, second },
+      new[] { second, fixture.SourcePath, first }
+    })
+    {
+      var result = RunCompilerWithoutGcc(arguments);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
-    Assert.Empty(result.StandardOutput);
-    Assert.Empty(result.StandardError);
-    Assert.False(File.Exists(fixture.PreprocessedPath));
-    Assert.False(File.Exists(fixture.AssemblyPath));
-    Assert.False(File.Exists(fixture.ExecutablePath));
+      Assert.Equal(ExitCode.Failure, result.ExitCode);
+      Assert.Empty(result.StandardOutput);
+      Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
+      Assert.False(File.Exists(fixture.PreprocessedPath));
+      Assert.False(File.Exists(fixture.AssemblyPath));
+      Assert.False(File.Exists(fixture.ExecutablePath));
+    }
   }
 
   [Theory]
   [InlineData("-S")]
   [InlineData("--lex")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
   public void DuplicateFlagsPrintUsageAndFail(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
@@ -239,7 +320,7 @@ public sealed class DriverTests
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
-    Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
+    Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
@@ -252,6 +333,10 @@ public sealed class DriverTests
   [InlineData("--unknown")]
   [InlineData("-S=false")]
   [InlineData("--lex=true")]
+  [InlineData("--parse=true")]
+  [InlineData("--parse=false")]
+  [InlineData("--codegen=true")]
+  [InlineData("--codegen=false")]
   [InlineData("extra.c")]
   public void InvalidArgumentsWithSourcePrintUsageAndProduceNoFiles(string argument)
   {
@@ -261,19 +346,24 @@ public sealed class DriverTests
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
-    Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
+    Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void PreprocessingFailurePropagatesDiagnosticsAndFails()
+  [Theory]
+  [InlineData("")]
+  [InlineData("--lex")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
+  [InlineData("-S")]
+  public void PreprocessingFailurePropagatesDiagnosticsAndFails(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 0; }");
     File.WriteAllText(fixture.SourcePath, "#include <header-that-does-not-exist.h>\n");
 
-    var result = RunCompiler(fixture.SourcePath);
+    var result = RunCompilerWithOption(option, fixture.SourcePath);
 
     Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("header-that-does-not-exist.h", result.StandardError);
@@ -322,8 +412,13 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
-  [Fact]
-  public void PreprocessingFailureRemovesPartialOutput()
+  [Theory]
+  [InlineData("")]
+  [InlineData("--lex")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
+  [InlineData("-S")]
+  public void PreprocessingFailureRemovesPartialOutput(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
     string gccDirectory = fixture.CreateGcc("""
@@ -332,7 +427,9 @@ public sealed class DriverTests
       exit 1
       """);
 
-    var result = RunCompilerWithEnvironment([fixture.SourcePath], gccDirectory: gccDirectory);
+    var result = RunCompilerWithEnvironment(
+      option == string.Empty ? [fixture.SourcePath] : [option, fixture.SourcePath],
+      gccDirectory: gccDirectory);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Equal($"preprocessing failed{Environment.NewLine}", result.StandardError);
@@ -464,6 +561,59 @@ public sealed class DriverTests
 
     Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("No such file or directory", result.StandardError, StringComparison.OrdinalIgnoreCase);
+  }
+
+  [Theory]
+  [InlineData("--lex")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
+  [InlineData("-S")]
+  public void StageFlagsRejectLexicalErrorsAndCleanIntermediateFiles(string option)
+  {
+    using var fixture = new TestFixture("int main(void) { return @; }");
+
+    var result = RunCompiler(option, fixture.SourcePath);
+
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Empty(result.StandardOutput);
+    Assert.Contains("Error:", result.StandardError);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Theory]
+  [InlineData("--lex")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
+  [InlineData("-S")]
+  public void StageFlagsNeverInvokeAssemblerOrLinker(string option)
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+    string gccDirectory = fixture.CreateGcc("""
+      if [ "$1" != '-E' ]; then
+        echo 'unexpected assembler/linker invocation' >&2
+        exit 1
+      fi
+      /bin/cp "$3" "$5"
+      """);
+
+    var result = RunCompilerWithEnvironment([option, fixture.SourcePath], gccDirectory: gccDirectory);
+
+    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Empty(result.StandardOutput);
+    Assert.Empty(result.StandardError);
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+    Assert.Equal(option == "-S", File.Exists(fixture.AssemblyPath));
+    if (option == "-S")
+      Assert.Equal("\t.globl _main\n_main:\n\tmovl $7, %eax\n\tret\n".Replace("\n", Environment.NewLine),
+        File.ReadAllText(fixture.AssemblyPath));
+  }
+
+  private static ProcessResult RunCompilerWithOption(string option, string sourcePath)
+  {
+    return option == string.Empty ? RunCompiler(sourcePath) : RunCompiler(option, sourcePath);
   }
 
   private static ProcessResult RunCompiler(params string[] arguments)

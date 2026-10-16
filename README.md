@@ -70,13 +70,18 @@ dotnet run --project src/Compiler.csproj -- -S data/return_2.c
 | `--help`, `-h` | Show generated help for the compiler's arguments and options. |
 | `--version` | Print the version without GCC; use alone, with no source path. |
 | `--lex` | Check tokens without printing them or generating output files. |
+| `--parse` | Parse the C program without generating output files. |
+| `--codegen` | Generate the assembly AST without emitting output files. |
 | `-S` | Write custom assembly without linking an executable. |
 
 Assembly-only mode leaves `data/return_2.s`. Successful executable builds remove
-intermediate `.i` and `.s` files; assembly-only and lex-only modes remove `.i`.
-Lex-only mode exits with `0` for valid tokens and a nonzero status on an error.
+intermediate `.i` and `.s` files. All stage-only modes remove `.i`.
+The stage flags (`--lex`, `--parse`, `--codegen`, and `-S`) are mutually exclusive
+and may appear before or after the source path. Each exits with `0` when its
+stages succeed and a nonzero status on an error. `--codegen` stops before
+assembly text emission; only `-S` writes a `.s` file.
 Integer constants must fit in a C# `int`; out-of-range constants report an error
-and exit with status `1` in both normal and lex-only modes.
+and exit with status `1` in every compilation mode.
 
 Cleanup is also attempted after preprocessing fails. If a compiler file cannot
 be read, written, or removed, the compiler reports a diagnostic on standard error
