@@ -7,7 +7,7 @@ public class Emitter
   {
     StringBuilder output = new();
 
-    output.AppendLine($"\t.globl _{program.Function.Identifer}");
+    output.AppendLine($"\t.globl _{program.Function.Identifier}");
     output.Append(EmitFunction(program.Function));
 
     return output.ToString();
@@ -17,7 +17,7 @@ public class Emitter
   {
     StringBuilder output = new();
 
-    output.AppendLine($"_{function.Identifer}:");
+    output.AppendLine($"_{function.Identifier}:");
     foreach (Assembly.Instruction instruction in function.Instructions)
       output.AppendLine($"\t{EmitInstruction(instruction)}");
 

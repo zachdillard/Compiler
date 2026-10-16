@@ -18,7 +18,7 @@ public sealed class GeneratorTests
 
     Assembly.Program assembly = Generator.Run(program);
 
-    Assert.Equal(identifier, assembly.Function.Identifer);
+    Assert.Equal(identifier, assembly.Function.Identifier);
     Assert.Collection(assembly.Function.Instructions,
       instruction => Assert.True(instruction is Assembly.Mov
       {
