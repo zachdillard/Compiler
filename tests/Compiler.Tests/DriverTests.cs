@@ -73,6 +73,30 @@ public sealed class DriverTests
     Assert.Contains("Usage: Compiler [-S] [--lex] <source-file>", result.StandardError);
   }
 
+  [Theory]
+  [InlineData("program.i", "")]
+  [InlineData("program.i", "--lex")]
+  [InlineData("program.i", "-S")]
+  [InlineData("program.s", "")]
+  [InlineData("program.S", "")]
+  [InlineData("program", "")]
+  [InlineData("program.C", "")]
+  [InlineData("program.txt", "")]
+  public void NonCSourceIsRejectedWithoutGccAndPreserved(string fileName, string option)
+  {
+    const string source = "int main(void) { return 7; }";
+    using var fixture = new TestFixture(source, fileName);
+
+    var result = option == string.Empty
+      ? RunCompilerWithoutGcc(fixture.SourcePath)
+      : RunCompilerWithoutGcc(option, fixture.SourcePath);
+
+    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal($"Error: source file must have a .c extension.{Environment.NewLine}", result.StandardError);
+    Assert.Empty(result.StandardOutput);
+    Assert.Equal(source, File.ReadAllText(fixture.SourcePath));
+  }
+
   [Fact]
   public void LexOnlyProducesNoOutputAndRemovesPreprocessedFile()
   {
@@ -256,6 +280,46 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
+  [Fact]
+  public void PreprocessingPassesX86_64TargetToGcc()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+    string gccDirectory = fixture.CreateGcc("""
+      case " $* " in
+        *' -arch x86_64 '*) ;;
+        *) echo 'missing x86_64 target' >&2; exit 1 ;;
+      esac
+      /bin/cp "$3" "$5"
+      """);
+
+    var result = RunCompilerWithEnvironment(["-S", fixture.SourcePath], gccDirectory: gccDirectory);
+
+    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Empty(result.StandardError);
+    Assert.Contains("movl $7, %eax", File.ReadAllText(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.PreprocessedPath));
+  }
+
+  [Fact]
+  public void PreprocessingUsesX86_64TargetMacros()
+  {
+    using var fixture = new TestFixture("""
+      #if defined(__x86_64__) && !defined(__aarch64__)
+      int main(void) { return 7; }
+      #else
+      int main(void) { return 9; }
+      #endif
+      """);
+
+    var result = RunCompiler("-S", fixture.SourcePath);
+
+    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Empty(result.StandardError);
+    Assert.Equal("\t.globl _main\n_main:\n\tmovl $7, %eax\n\tret\n".Replace("\n", Environment.NewLine),
+      File.ReadAllText(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
   [Fact]
@@ -462,10 +526,10 @@ public sealed class DriverTests
   {
     private readonly string directory;
 
-    public TestFixture(string source)
+    public TestFixture(string source, string fileName = "program.c")
     {
       directory = Directory.CreateTempSubdirectory("compiler-test-").FullName;
-      SourcePath = Path.Combine(directory, "program.c");
+      SourcePath = Path.Combine(directory, fileName);
       File.WriteAllText(SourcePath, source);
     }
 

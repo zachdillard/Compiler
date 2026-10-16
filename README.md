@@ -58,6 +58,7 @@ program prints nothing and exits with status `2`, which `echo $?` displays.
 
 Run commands from the repository root. The `--` separates `dotnet run` options
 from the arguments passed to the compiler: its options and one C source path.
+The source path must end in `.c`; other extensions are rejected before GCC runs.
 For example, to inspect the custom compiler's assembly:
 
 ```sh

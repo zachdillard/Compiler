@@ -12,6 +12,11 @@
 
 ### Fixed
 
+- Inputs without a `.c` extension are rejected before preprocessing, preventing
+  intermediate-file cleanup from deleting an input `.i` file.
+- Preprocessing selects the x86-64 target on macOS so architecture macros match
+  the generated executable on Apple Silicon.
+- CI also runs when root build configuration or the test workflow changes.
 - Out-of-range integer constants report a diagnostic and exit with status `1`
   instead of crashing, including in lex-only mode.
 - Partial preprocessed output is cleaned up after preprocessing failures.

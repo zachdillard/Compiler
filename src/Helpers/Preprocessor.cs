@@ -5,7 +5,7 @@ namespace Helpers;
 
 public class Preprocessor
 {
-  public static int Run(string inputFile, string preprocessedFile)
+  public static int Run(string inputFile, string preprocessedFile, bool x86_64 = false)
   {
     var startInfo = new ProcessStartInfo
     {
@@ -22,6 +22,12 @@ public class Preprocessor
         preprocessedFile
       }
     };
+
+    if (x86_64 && OperatingSystem.IsMacOS())
+    {
+      startInfo.ArgumentList.Add("-arch");
+      startInfo.ArgumentList.Add("x86_64");
+    }
 
     try
     {

@@ -127,7 +127,8 @@ partial output and assembly cleanup failures deterministically.
 
 [GitHub Actions](../.github/workflows/compiler-tests.yml) runs these builds and
 tests on an Intel macOS runner for pushes to `main` and pull requests that change
-`src/` or `tests/`. It can also be started manually. It installs the SDK from
+`src/`, `tests/`, `global.json`, `Directory.Build.props`, `Compiler.slnx`, or the
+workflow itself. It can also be started manually. It installs the SDK from
 `global.json` and checks GCC availability. Each configuration also runs the
 chapter-one book suite against a separate checkout of the upstream tests.
 

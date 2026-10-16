@@ -12,7 +12,7 @@ try
 {
   try
   {
-    exitCode = Preprocessor.Run(compilerArgs.InputFile, compilerArgs.PreprocessedFile);
+    exitCode = Preprocessor.Run(compilerArgs.InputFile, compilerArgs.PreprocessedFile, x86_64: true);
     if (exitCode != ExitCode.Success)
       return exitCode;
 
@@ -105,6 +105,13 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
   var assemblyOnly = result.GetValue(commandLine.AssemblyOnlyOption);
   var lexOnly = result.GetValue(commandLine.LexOnlyOption);
   var inputFile = result.GetRequiredValue(commandLine.SourceFileArgument);
+
+  if (Path.GetExtension(inputFile) != ".c")
+  {
+    Console.Error.WriteLine("Error: source file must have a .c extension.");
+    exitCode = ExitCode.Failure;
+    return null;
+  }
 
   var preprocessedFile = Path.ChangeExtension(inputFile, ".i");
   var assemblyFile = Path.ChangeExtension(inputFile, ".s");
