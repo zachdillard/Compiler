@@ -17,5 +17,10 @@
   - Assembler - turns text into object files
   - Linker - combines object files into a single executable
   - These will be handled by GCC
-
-
+- Book requires
+  - macOS or Linux
+  - Windows requires WSL
+  - Python 3.8 or later
+- Additional requirements
+  - xcodetools
+  - GCC on `PATH`

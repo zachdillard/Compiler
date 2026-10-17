@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/Compiler.csproj" />
+    <ProjectReference Include="../src/Compiler.csproj" />
   </ItemGroup>
 
 </Project>

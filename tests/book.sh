@@ -13,11 +13,10 @@ else
   configuration=Debug
 fi
 
-output_dir=artifacts/book-tests
+output_dir="src/bin/$configuration/net11.0"
 
 dotnet build src/Compiler.csproj \
   --configuration "$configuration" \
-  --output "$output_dir" \
   -m:1 \
   -p:UseSharedCompilation=false
 

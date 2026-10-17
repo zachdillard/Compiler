@@ -127,8 +127,8 @@ partial output and assembly cleanup failures deterministically.
 
 ### Continuous integration
 
-[GitHub Actions](../.github/workflows/compiler-tests.yml) runs these builds and
-tests on an Intel macOS runner for pushes to `main` and pull requests that change
+[GitHub Actions](../.github/workflows/tests.yml) runs these builds and
+tests on the Apple Silicon `xcode-27` preview runner for pushes to `main` and pull requests that change
 `src/`, `tests/`, `global.json`, `Directory.Build.props`, `Compiler.slnx`, or the
 workflow itself. It can also be started manually. It installs the SDK from
 `global.json` and checks GCC availability. Each configuration also runs the
@@ -160,8 +160,8 @@ The runner has no assembly-only stage; the project integration tests validate
 
 Run the script from the compiler repository root so `dotnet` uses the SDK
 selection in `global.json` and the script resolves its paths correctly. It builds
-the compiler into `artifacts/book-tests/`, restoring dependencies as needed,
-then runs the book's `test_compiler` runner with your arguments. The generated
+the compiler into `src/bin/<configuration>/net11.0/`, restoring dependencies
+as needed, then runs the book's `test_compiler` runner with your arguments. The generated
 build output is ignored by Git.
 
 For an existing checkout elsewhere:

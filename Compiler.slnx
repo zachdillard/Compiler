@@ -1,4 +1,4 @@
 <Solution>
   <Project Path="src/Compiler.csproj" />
-  <Project Path="tests/Compiler.Tests/Compiler.Tests.csproj" />
+  <Project Path="tests/Tests.csproj" />
 </Solution>
