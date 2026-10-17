@@ -31,8 +31,8 @@ softwareupdate --install-rosetta
 With Git and the prerequisites installed, clone the repository and enter it:
 
 ```sh
-git clone https://github.com/zachdillard/compiler.git
-cd compiler
+git clone https://github.com/zachdillard/Compiler.git
+cd Compiler
 ```
 
 If you already cloned it, open a terminal in that checkout's root directory

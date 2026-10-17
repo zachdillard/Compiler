@@ -40,8 +40,8 @@ and SDK troubleshooting.
 Clone the repository and build:
 
 ```sh
-git clone https://github.com/zachdillard/compiler.git
-cd compiler
+git clone https://github.com/zachdillard/Compiler.git
+cd Compiler
 dotnet build
 ```
 
