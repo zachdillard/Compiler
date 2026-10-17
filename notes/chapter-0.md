@@ -1,5 +1,7 @@
 - A _compiler_ is a program that translates code from one programming languge to another
 - _This_ compiler will translate C to x64 assembly code targeting macOS
+  - Implements a subset of C17 (ISO/IEC 9899:2018) of the C standard
+  - https://www.open-std.org/JTC1/SC22/WG14/www/docs/n2310.pdf
 - Additonal targets for Linux and ARM assembly will be explored but are not the main goal
 - It will be implemented in dotnet 11 and C# 15
 - The goal is to produce a single binary called _Compiler_ that runs on macOS natively
