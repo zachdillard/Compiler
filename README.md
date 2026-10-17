@@ -35,22 +35,36 @@ and SDK troubleshooting.
 
 ## Quick Start
 
-With Git and the prerequisites installed, run:
+### Build the compiler
+
+Clone the repository and build:
 
 ```sh
 git clone https://github.com/zachdillard/compiler.git
 cd compiler
-./scripts/run.sh data/return_2.c
+dotnet build
+```
+
+### Run the compiler
+
+Add the build output to `PATH` for the current terminal, then compile a C file:
+
+```sh
+export PATH="$PWD/src/bin/Debug/net11.0:$PATH"
+Compiler data/return_2.c
+```
+
+The compiler creates `data/return_2` beside the source file.
+
+### Run the generated program
+
+```sh
 ./data/return_2
 echo $?
 # 2
 ```
 
-The compiler creates `data/return_2` beside the source file. The generated
-program prints nothing and exits with status `2`, which `echo $?` displays.
-
-See the [development guide](docs/development.md#usage) for compiler usage,
-build options, and testing.
+The generated program prints nothing and exits with status `2` and `echo $?` displays the result.
 
 ## Further reading
 
