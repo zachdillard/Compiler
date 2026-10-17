@@ -27,9 +27,10 @@ permissions:
 
 jobs:
   test:
-    runs-on: xcode-27
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [xcode-27, ubuntu-latest]
         configuration: [Debug, Release]
     steps:
       - uses: actions/checkout@v5

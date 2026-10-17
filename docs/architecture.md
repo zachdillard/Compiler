@@ -30,7 +30,7 @@ flowchart TD
         lexer["Lexer"] -->|"Typed tokens"| parser["Parser"]
         parser -->|"C AST"| generator["Generator"]
         generator -->|"Assembly AST"| emitter["Emitter"]
-        emitter -->|"macOS x86-64 assembly text"| writer["Writer"]
+        emitter -->|"Target-specific x86-64 assembly text"| writer["Writer"]
     end
 
     writer -->|"Assembly file (.s)"| assembler["Assembler (GCC)<br/>Assemble and link"]
@@ -43,9 +43,17 @@ Each stage has one job:
 2. `Lexer` returns the typed tokens defined in `Token.cs`.
 3. `Parser` returns the C AST defined in `C.cs` and described in [c-ast.md](c-ast.md).
 4. `Generator` lowers the C AST to the assembly AST in `Assembly.cs`, described in [asm-ast.md](asm-ast.md).
-5. `Emitter` returns macOS x86-64 assembly text.
+5. `Emitter` accepts a `CompilationTarget` (`Mac` or `Linux`) and returns the
+   corresponding x86-64 assembly text. Mac symbols have an underscore prefix;
+   Linux symbols keep their C names, and Linux output includes a
+   `.note.GNU-stack` section to mark the stack as non-executable.
 6. `Writer` saves the assembly to a `.s` file.
 7. `Assembler` uses GCC to assemble and link the executable.
+
+`Driver` selects `CompilationTarget.Mac` when running on macOS and
+`CompilationTarget.Linux` when running on Linux. Other operating systems are
+rejected before GCC is invoked. Both targets generate x86-64 code. The GCC
+helpers add `-arch x86_64` on macOS; Linux uses the native x86-64 GCC toolchain.
 
 The mutually exclusive stage flags stop after lexing (`--lex`), parsing
 (`--parse`), assembly AST generation (`--codegen`), or writing assembly (`-S`).
@@ -56,8 +64,9 @@ assembling or linking. Every mode removes the preprocessed `.i` file.
 
 `Lexer`, `Parser`, `Generator`, `Emitter`, and token types use the global namespace.
 The C AST and assembly AST live in `src/Syntax/` and use `Syntax.C` and `Syntax.Assembly`.
-The GCC stages (`Preprocessor` and `Assembler`), `Writer`, and `ExitCode` live in
-`src/Helpers/` and use `Helpers`. Tests use `CompilerIntegrationTests`.
+The GCC stages (`Preprocessor` and `Assembler`), `Writer`, `ExitCode`, and
+`CompilationTarget` live in `src/Helpers/` and use `Helpers`. Tests use
+`CompilerIntegrationTests`.
 `Driver.cs` constructs command-line options in a static method and orchestrates
 the compiler pipeline, including preprocessing-file cleanup and compiler diagnostics.
 

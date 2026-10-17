@@ -1,3 +1,4 @@
+using Helpers;
 using Xunit;
 using Assembly = Syntax.Assembly;
 
@@ -11,7 +12,7 @@ public sealed class EmitterTests
   [InlineData("_entry1", 42, "42")]
   [InlineData("minimum", int.MinValue, "-2147483648")]
   [InlineData("maximum", int.MaxValue, "2147483647")]
-  public void EmitsFunctionWithMatchingSymbolAndInstructions(string identifier, int value, string immediate)
+  public void EmitsMacFunctionWithMatchingSymbolAndInstructions(string identifier, int value, string immediate)
   {
     Assembly.Program program = new(new Assembly.Function(identifier,
     [
@@ -19,9 +20,29 @@ public sealed class EmitterTests
       new Assembly.Ret()
     ]));
 
-    string output = Emitter.Run(program);
+    string output = Emitter.Run(program, CompilationTarget.Mac);
 
     Assert.Equal($"\t.globl _{identifier}\n_{identifier}:\n\tmovl ${immediate}, %eax\n\tret\n"
+      .Replace("\n", Environment.NewLine), output);
+  }
+
+  [Theory]
+  [InlineData("main", 2, "2")]
+  [InlineData("answer", 0, "0")]
+  [InlineData("_entry1", 42, "42")]
+  [InlineData("minimum", int.MinValue, "-2147483648")]
+  [InlineData("maximum", int.MaxValue, "2147483647")]
+  public void EmitsLinuxFunctionWithMatchingSymbolAndStackNote(string identifier, int value, string immediate)
+  {
+    Assembly.Program program = new(new Assembly.Function(identifier,
+    [
+      new Assembly.Mov(new Assembly.Imm(value), new Assembly.Register()),
+      new Assembly.Ret()
+    ]));
+
+    string output = Emitter.Run(program, CompilationTarget.Linux);
+
+    Assert.Equal($"\t.globl {identifier}\n{identifier}:\n\tmovl ${immediate}, %eax\n\tret\n\t.section .note.GNU-stack,\"\",@progbits\n"
       .Replace("\n", Environment.NewLine), output);
   }
 
@@ -37,7 +58,7 @@ public sealed class EmitterTests
     string expected = string.Join(Environment.NewLine,
       "\t.globl _main", "_main:", "\tmovl $7, %eax", "\tmovl $42, %eax", "\tret", "");
 
-    Assert.Equal(expected, Emitter.Run(program));
+    Assert.Equal(expected, Emitter.Run(program, CompilationTarget.Mac));
   }
 
   [Fact]
@@ -46,7 +67,30 @@ public sealed class EmitterTests
     Assembly.Program program = new(new Assembly.Function("empty", []));
     string expected = string.Join(Environment.NewLine, "\t.globl _empty", "_empty:", "");
 
-    Assert.Equal(expected, Emitter.Run(program));
+    Assert.Equal(expected, Emitter.Run(program, CompilationTarget.Mac));
+  }
+
+  [Fact]
+  public void EmitsLinuxFunctionHeaderAndStackNoteForEmptyInstructions()
+  {
+    Assembly.Program program = new(new Assembly.Function("empty", []));
+    string expected = string.Join(Environment.NewLine,
+      "\t.globl empty", "empty:", "\t.section .note.GNU-stack,\"\",@progbits", "");
+
+    Assert.Equal(expected, Emitter.Run(program, CompilationTarget.Linux));
+  }
+
+  [Theory]
+  [InlineData(-1)]
+  [InlineData(2)]
+  public void RejectsUnknownTargetWithDiagnostic(int target)
+  {
+    Assembly.Program program = new(new Assembly.Function("main", []));
+
+    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
+      Emitter.Run(program, (CompilationTarget)target));
+
+    Assert.Equal("Unknown compilation target.", exception.Message);
   }
 
   [Fact]
@@ -54,7 +98,7 @@ public sealed class EmitterTests
   {
     Assembly.Program program = new(new Assembly.Function("main", [default]));
 
-    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Emitter.Run(program));
+    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Emitter.Run(program, CompilationTarget.Mac));
 
     Assert.Equal("Unknown assembly instruction.", exception.Message);
   }
@@ -68,7 +112,7 @@ public sealed class EmitterTests
     Assembly.Operand destination = invalidSource ? new Assembly.Register() : default(Assembly.Operand);
     Assembly.Program program = new(new Assembly.Function("main", [new Assembly.Mov(source, destination)]));
 
-    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Emitter.Run(program));
+    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Emitter.Run(program, CompilationTarget.Mac));
 
     Assert.Equal("Unknown assembly operand.", exception.Message);
   }

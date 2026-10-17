@@ -8,6 +8,17 @@ var compilerArgs = CreateCompilerArguments(args, out var exitCode);
 if (compilerArgs is null)
   return exitCode;
 
+CompilationTarget target;
+if (OperatingSystem.IsMacOS())
+  target = CompilationTarget.Mac;
+else if (OperatingSystem.IsLinux())
+  target = CompilationTarget.Linux;
+else
+{
+  Console.Error.WriteLine("Error: only macOS and Linux compilation targets are supported.");
+  return ExitCode.Failure;
+}
+
 try
 {
   try
@@ -28,7 +39,7 @@ try
     if (compilerArgs.CodegenOnly)
       return ExitCode.Success;
 
-    string output = Emitter.Run(assembly);
+    string output = Emitter.Run(assembly, target);
     Writer.Run(output, compilerArgs.AssemblyFile);
   }
   catch (InvalidOperationException exception)

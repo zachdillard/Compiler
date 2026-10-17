@@ -1,23 +1,33 @@
+using Helpers;
 using System.Text;
 using Assembly = Syntax.Assembly;
 
 public class Emitter
 {
-  public static string Run(Assembly.Program program)
+  public static string Run(Assembly.Program program, CompilationTarget target)
   {
     StringBuilder output = new();
+    string symbol = target switch
+    {
+      CompilationTarget.Mac => $"_{program.Function.Identifier}",
+      CompilationTarget.Linux => program.Function.Identifier,
+      _ => throw new InvalidOperationException("Unknown compilation target.")
+    };
 
-    output.AppendLine($"\t.globl _{program.Function.Identifier}");
-    output.Append(EmitFunction(program.Function));
+    output.AppendLine($"\t.globl {symbol}");
+    output.Append(EmitFunction(program.Function, symbol));
+
+    if (target == CompilationTarget.Linux)
+      output.AppendLine("\t.section .note.GNU-stack,\"\",@progbits");
 
     return output.ToString();
   }
 
-  private static string EmitFunction(Assembly.Function function)
+  private static string EmitFunction(Assembly.Function function, string symbol)
   {
     StringBuilder output = new();
 
-    output.AppendLine($"_{function.Identifier}:");
+    output.AppendLine($"{symbol}:");
     foreach (Assembly.Instruction instruction in function.Instructions)
       output.AppendLine($"\t{EmitInstruction(instruction)}");
 

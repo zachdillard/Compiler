@@ -7,8 +7,9 @@ from the repository root unless noted otherwise.
 
 - .NET 11 RC1 SDK **11.0.100-rc.1.26425.128**, as specified in [global.json](../global.json)
 - GCC available on `PATH` (Apple's Clang-backed `gcc` is suitable)
-- For the custom compiler: macOS with x86-64 assembly/linking support. Running
-  its executables on Apple Silicon requires Rosetta 2.
+- For the custom compiler: macOS with x86-64 assembly/linking support, or
+  Linux x86-64. The host OS selects the compilation target. Running its
+  executables on Apple Silicon requires Rosetta 2.
 
 Install the SDK from the [official .NET 11 download page](https://dotnet.microsoft.com/en-us/download/dotnet/11.0),
 selecting the RC1 SDK version above: Arm64 for Apple Silicon or x64 for Intel
@@ -220,7 +221,8 @@ partial output and assembly cleanup failures deterministically.
 ### Continuous integration
 
 [GitHub Actions](../.github/workflows/tests.yml) runs these builds and
-tests on the Apple Silicon `xcode-27` preview runner for pushes to `main` and pull requests that change
+tests on the Apple Silicon `xcode-27` preview runner and Linux x86-64
+`ubuntu-latest` runner for pushes to `main` and pull requests that change
 `src/`, `tests/`, `scripts/`, `global.json`, `Directory.Build.props`, `Compiler.slnx`, or the
 workflow itself. It can also be started manually. It installs the SDK from
 `global.json` and checks GCC availability. Each configuration also runs the

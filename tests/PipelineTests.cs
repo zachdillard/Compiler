@@ -1,3 +1,4 @@
+using Helpers;
 using Xunit;
 using Assembly = Syntax.Assembly;
 using C = Syntax.C;
@@ -16,7 +17,7 @@ public sealed class PipelineTests
     List<Token> tokens = Lexer.Run(source);
     C.Program program = Parser.Run(tokens);
     Assembly.Program assembly = Generator.Run(program);
-    string text = Emitter.Run(assembly);
+    string text = Emitter.Run(assembly, CompilationTarget.Mac);
 
     Assert.Equal(expected, text);
   }

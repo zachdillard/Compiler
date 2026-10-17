@@ -6,6 +6,7 @@ using Xunit;
 namespace CompilerIntegrationTests;
 
 [SupportedOSPlatform("macos")]
+[SupportedOSPlatform("linux")]
 public sealed class DriverTests
 {
   [Fact]
@@ -176,7 +177,7 @@ public sealed class DriverTests
   }
 
   [Fact]
-  public void CustomAssemblyOnlyCompilationWritesAssemblyAndCleansPreprocessedFile()
+  public void AssemblyOnlyCompilationUsesHostTargetAndCleansPreprocessedFile()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
@@ -185,8 +186,7 @@ public sealed class DriverTests
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.False(File.Exists(fixture.PreprocessedPath));
-    Assert.Equal("\t.globl _main\n_main:\n\tmovl $7, %eax\n\tret\n".Replace("\n", Environment.NewLine),
-      File.ReadAllText(fixture.AssemblyPath));
+    Assert.Equal(ExpectedHostAssembly, File.ReadAllText(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
@@ -198,14 +198,21 @@ public sealed class DriverTests
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.False(File.Exists(fixture.ExecutablePath));
 
-    using var gcc = Process.Start(new ProcessStartInfo
+    var gccStartInfo = new ProcessStartInfo
     {
       FileName = "gcc",
-      ArgumentList = { "-arch", "x86_64", fixture.AssemblyPath, "-o", fixture.ExecutablePath },
+      ArgumentList = { fixture.AssemblyPath, "-o", fixture.ExecutablePath },
       UseShellExecute = false,
       RedirectStandardOutput = true,
       RedirectStandardError = true
-    });
+    };
+    if (OperatingSystem.IsMacOS())
+    {
+      gccStartInfo.ArgumentList.Insert(0, "-arch");
+      gccStartInfo.ArgumentList.Insert(1, "x86_64");
+    }
+
+    using var gcc = Process.Start(gccStartInfo);
     Assert.NotNull(gcc);
     string diagnostics = gcc.StandardError.ReadToEnd();
     gcc.WaitForExit();
@@ -373,16 +380,22 @@ public sealed class DriverTests
   }
 
   [Fact]
-  public void PreprocessingPassesX86_64TargetToGcc()
+  public void PreprocessingUsesHostSpecificGccArguments()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
-    string gccDirectory = fixture.CreateGcc("""
-      case " $* " in
-        *' -arch x86_64 '*) ;;
-        *) echo 'missing x86_64 target' >&2; exit 1 ;;
-      esac
-      /bin/cp "$3" "$5"
-      """);
+    string targetCheck = OperatingSystem.IsMacOS()
+      ? """
+        case " $* " in
+          *' -arch x86_64 '*) ;;
+          *) echo 'missing x86_64 target' >&2; exit 1 ;;
+        esac
+        """
+      : """
+        case " $* " in
+          *' -arch '*) echo 'unexpected macOS argument' >&2; exit 1 ;;
+        esac
+        """;
+    string gccDirectory = fixture.CreateGcc(targetCheck + "\n/bin/cp \"$3\" \"$5\"");
 
     var result = RunCompilerWithEnvironment(["-S", fixture.SourcePath], gccDirectory: gccDirectory);
 
@@ -407,8 +420,7 @@ public sealed class DriverTests
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
-    Assert.Equal("\t.globl _main\n_main:\n\tmovl $7, %eax\n\tret\n".Replace("\n", Environment.NewLine),
-      File.ReadAllText(fixture.AssemblyPath));
+    Assert.Equal(ExpectedHostAssembly, File.ReadAllText(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
@@ -607,9 +619,13 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
     Assert.Equal(option == "-S", File.Exists(fixture.AssemblyPath));
     if (option == "-S")
-      Assert.Equal("\t.globl _main\n_main:\n\tmovl $7, %eax\n\tret\n".Replace("\n", Environment.NewLine),
-        File.ReadAllText(fixture.AssemblyPath));
+      Assert.Equal(ExpectedHostAssembly, File.ReadAllText(fixture.AssemblyPath));
   }
+
+  private static string ExpectedHostAssembly => (OperatingSystem.IsMacOS()
+    ? "\t.globl _main\n_main:\n\tmovl $7, %eax\n\tret\n"
+    : "\t.globl main\nmain:\n\tmovl $7, %eax\n\tret\n\t.section .note.GNU-stack,\"\",@progbits\n")
+    .Replace("\n", Environment.NewLine);
 
   private static ProcessResult RunCompilerWithOption(string option, string sourcePath)
   {
