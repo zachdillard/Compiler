@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$script_dir/.."
+
 if [ -n "${BOOK_TESTS_DIR:-}" ]; then
   book_tests_dir="$BOOK_TESTS_DIR"
 else
@@ -15,10 +18,15 @@ fi
 
 output_dir="src/bin/$configuration/net11.0"
 
-dotnet build src/Compiler.csproj \
-  --configuration "$configuration" \
-  -m:1 \
-  -p:UseSharedCompilation=false
+if [ "${1:-}" = "--no-build" ]; then
+  shift
+else
+  dotnet build src/Compiler.csproj \
+    --configuration "$configuration" \
+    -m:1 \
+    --disable-build-servers \
+    -p:UseSharedCompilation=false
+fi
 
 exec python3 \
   "$book_tests_dir/test_compiler" \

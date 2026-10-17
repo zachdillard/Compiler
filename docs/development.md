@@ -58,10 +58,16 @@ dependencies.
 Build from the repository root with:
 
 ```sh
-dotnet build -m:1 --disable-build-servers
+./scripts/build.sh
+./scripts/build.sh Release
 ```
 
-These flags avoid MSBuild worker socket failures in Codex’s sandbox.
+The build script defaults to Debug and accepts `Debug` or `Release`.
+Compile a source file with `./scripts/run.sh data/return_2.c`; compiler options
+can be passed through, for example `./scripts/run.sh -S data/return_2.c`.
+
+The build script uses `-m:1 --disable-build-servers` to avoid MSBuild worker
+socket failures in Codex’s sandbox.
 
 ## Debugging in VS Code
 
@@ -91,6 +97,17 @@ Run the project tests from the repository root:
 dotnet test
 ```
 
+Run both the project tests and chapter-one book tests with:
+
+```sh
+./scripts/test.sh
+```
+
+This requires the book test checkout described below. Arguments are forwarded
+to the book runner; for example, `./scripts/test.sh --chapter 1 --stage lex`.
+Set `BUILD_CONFIGURATION=Release` to run both suites in Release.
+The book tests reuse the compiler built by `dotnet test`.
+
 ### Debug and Release checks
 
 To check the project and chapter-one book tests in both build configurations:
@@ -98,10 +115,10 @@ To check the project and chapter-one book tests in both build configurations:
 ```sh
 dotnet build --configuration Debug -m:1 --disable-build-servers
 dotnet test --configuration Debug --no-build
-BUILD_CONFIGURATION=Debug ./tests/book.sh --chapter 1
+BUILD_CONFIGURATION=Debug ./scripts/book.sh --no-build --chapter 1
 dotnet build --configuration Release -m:1 --disable-build-servers
 dotnet test --configuration Release --no-build
-BUILD_CONFIGURATION=Release ./tests/book.sh --chapter 1
+BUILD_CONFIGURATION=Release ./scripts/book.sh --no-build --chapter 1
 ```
 
 ### What the tests cover
@@ -129,7 +146,7 @@ partial output and assembly cleanup failures deterministically.
 
 [GitHub Actions](../.github/workflows/tests.yml) runs these builds and
 tests on the Apple Silicon `xcode-27` preview runner for pushes to `main` and pull requests that change
-`src/`, `tests/`, `global.json`, `Directory.Build.props`, `Compiler.slnx`, or the
+`src/`, `tests/`, `scripts/`, `global.json`, `Directory.Build.props`, `Compiler.slnx`, or the
 workflow itself. It can also be started manually. It installs the SDK from
 `global.json` and checks GCC availability. Each configuration also runs the
 chapter-one book suite in full and at the lex, parse, and codegen stages against
@@ -143,32 +160,35 @@ and the compiler prerequisites above. From the compiler repository root:
 ```sh
 git clone https://github.com/nlsandler/writing-a-c-compiler-tests.git \
   ../writing-a-c-compiler-tests
-./tests/book.sh --chapter 1
+./scripts/book.sh --chapter 1
 ```
 
 This runs the full chapter-one suite against the custom compiler, including
 valid programs and invalid lexing/parsing cases. To test individual stages, use:
 
 ```sh
-./tests/book.sh --chapter 1 --stage lex
-./tests/book.sh --chapter 1 --stage parse
-./tests/book.sh --chapter 1 --stage codegen
+./scripts/book.sh --chapter 1 --stage lex
+./scripts/book.sh --chapter 1 --stage parse
+./scripts/book.sh --chapter 1 --stage codegen
 ```
 
 The runner has no assembly-only stage; the project integration tests validate
 `-S`, including linking its assembly with GCC and executing the result.
 
-Run the script from the compiler repository root so `dotnet` uses the SDK
-selection in `global.json` and the script resolves its paths correctly. It builds
+The script switches to the compiler repository root so `dotnet` uses the SDK
+selection in `global.json` and repository-relative paths resolve correctly. It builds
 the compiler into `src/bin/<configuration>/net11.0/`, restoring dependencies
 as needed, then runs the book's `test_compiler` runner with your arguments. The generated
 build output is ignored by Git.
+
+To reuse an existing compiler build, pass `--no-build` as the first argument:
+`./scripts/book.sh --no-build --chapter 1`.
 
 For an existing checkout elsewhere:
 
 ```sh
 BOOK_TESTS_DIR="/path/to/writing-a-c-compiler-tests" \
-  ./tests/book.sh --chapter 1
+  ./scripts/book.sh --chapter 1
 ```
 
 See the

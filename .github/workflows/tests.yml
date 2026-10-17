@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      - 'scripts/**'
       - 'global.json'
       - 'Directory.Build.props'
       - 'Compiler.slnx'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
+      - 'scripts/**'
       - 'global.json'
       - 'Directory.Build.props'
       - 'Compiler.slnx'
@@ -55,7 +57,7 @@ jobs:
           BOOK_TESTS_DIR: ${{ github.workspace }}/artifacts/writing-a-c-compiler-tests
           BUILD_CONFIGURATION: ${{ matrix.configuration }}
         run: |
-          ./tests/book.sh --chapter 1 --stage lex
-          ./tests/book.sh --chapter 1 --stage parse
-          ./tests/book.sh --chapter 1 --stage codegen
-          ./tests/book.sh --chapter 1
+          ./scripts/book.sh --no-build --chapter 1 --stage lex
+          ./scripts/book.sh --no-build --chapter 1 --stage parse
+          ./scripts/book.sh --no-build --chapter 1 --stage codegen
+          ./scripts/book.sh --no-build --chapter 1
