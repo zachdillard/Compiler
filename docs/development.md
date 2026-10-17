@@ -1,7 +1,7 @@
 # Development guide
 
-Start with the [README](../README.md) for a quick introduction and compiler
-options. Run commands from the repository root unless noted otherwise.
+Start with the [README](../README.md) for a quick introduction. Run commands
+from the repository root unless noted otherwise.
 
 ## Setup
 
@@ -63,11 +63,23 @@ Build from the repository root with:
 ```
 
 The build script defaults to Debug and accepts `Debug` or `Release`.
-Compile a source file with `./scripts/run.sh data/return_2.c`; compiler options
-can be passed through, for example `./scripts/run.sh -S data/return_2.c`.
 
 The build script uses `-m:1 --disable-build-servers` to avoid MSBuild worker
 socket failures in Codex’s sandbox.
+
+## Usage
+
+Compile a C source file or generate assembly only:
+
+```sh
+./scripts/run.sh data/return_2.c
+./scripts/run.sh -S data/return_2.c
+```
+
+Pass compiler options directly to `run.sh`; no extra `--` is needed.
+Use `./scripts/run.sh --help` for all compiler options. The
+[compiler pipeline](architecture.md#pipeline) describes the stage flags
+`--lex`, `--parse`, `--codegen`, and `-S`; choose one per run.
 
 ## Debugging in VS Code
 

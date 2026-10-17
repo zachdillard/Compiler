@@ -13,7 +13,7 @@ The goals of this project are to:
 
 ## Capabilities
 
-The compiler currently completes chapter one: a single `int` function
+The compiler completes chapter one: a single `int` function
 with `void` parameters that returns an integer constant.
 
 ```c
@@ -40,61 +40,17 @@ With Git and the prerequisites installed, run:
 ```sh
 git clone https://github.com/zachdillard/compiler.git
 cd compiler
-./scripts/build.sh
 ./scripts/run.sh data/return_2.c
 ./data/return_2
-echo $? # Expected: 2
+echo $?
+# 2
 ```
 
 The compiler creates `data/return_2` beside the source file. The generated
 program prints nothing and exits with status `2`, which `echo $?` displays.
 
-## Usage
-
-Run commands from the repository root:
-
-| Command | What it does |
-| --- | --- |
-| `./scripts/build.sh` | Build the solution in Debug; also accepts `Debug` or `Release`. |
-| `./scripts/run.sh data/return_2.c` | Compile a C source file, forwarding arguments to the compiler. |
-| `./scripts/test.sh` | Run the .NET tests and chapter-one book tests, building once. |
-| `./scripts/book.sh --chapter 1` | Build the compiler and run the chapter-one book tests. |
-
-For a Release build, use `./scripts/build.sh Release`. To run both test suites
-in Release, use `BUILD_CONFIGURATION=Release ./scripts/test.sh`.
-Book tests require a separate checkout of the book's test repository; see the
-[development guide](docs/development.md#optional-book-tests) for setup.
-To reuse an existing compiler build, use `./scripts/book.sh --no-build --chapter 1`.
-
-Pass compiler options and one C source path directly to `run.sh`.
-The source path must end in `.c`; other extensions are rejected before GCC runs.
-For example, to inspect the custom compiler's assembly:
-
-```sh
-./scripts/run.sh -S data/return_2.c
-```
-
-| Option | What it does |
-| --- | --- |
-| `--help`, `-h` | Show generated help for the compiler's arguments and options. |
-| `--version` | Print the version without GCC; use alone, with no source path. |
-| `--lex` | Check tokens without printing them or generating output files. |
-| `--parse` | Parse the C program without generating output files. |
-| `--codegen` | Generate the assembly AST without emitting output files. |
-| `-S` | Write custom assembly without linking an executable. |
-
-Assembly-only mode leaves `data/return_2.s`. Successful executable builds remove
-intermediate `.i` and `.s` files. All stage-only modes remove `.i`.
-The stage flags (`--lex`, `--parse`, `--codegen`, and `-S`) are mutually exclusive
-and may appear before or after the source path. Each exits with `0` when its
-stages succeed and a nonzero status on an error. `--codegen` stops before
-assembly text emission; only `-S` writes a `.s` file.
-Integer constants must fit in a C# `int`; out-of-range constants report an error
-and exit with status `1` in every compilation mode.
-
-Cleanup is also attempted after preprocessing fails. If a compiler file cannot
-be read, written, or removed, the compiler reports a diagnostic on standard error
-and exits with status `1`.
+See the [development guide](docs/development.md#usage) for compiler usage,
+build options, and testing.
 
 ## Further reading
 
