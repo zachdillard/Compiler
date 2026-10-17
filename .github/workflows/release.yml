@@ -7,30 +7,66 @@ on:
 permissions:
   contents: write
 
+env:
+  RELEASE_TAG: ${{ github.ref_name }}
+
 jobs:
-  release:
-    runs-on: xcode-27
-    env:
-      RELEASE_TAG: ${{ github.ref_name }}
+  tests:
+    permissions:
+      contents: read
+    uses: $/.github/workflows/tests.yml
+
+  build:
+    needs: tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: xcode-27
+            runtime: osx-arm64
+          - os: ubuntu-26.04
+            runtime: linux-x64
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
-      - name: Test
-        run: dotnet test --configuration Release -m:1 --disable-build-servers
+      - name: Install Linux Native AOT prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
 
       - name: Publish and package
         run: ./scripts/publish.sh
 
       - name: Check native executable and release version
+        env:
+          RUNTIME: ${{ matrix.runtime }}
         run: |
-          version=$(./artifacts/publish/osx-arm64/Release/Compiler --version)
+          version=$(./artifacts/publish/"$RUNTIME"/Release/Compiler --version)
           if [ "$RELEASE_TAG" != "v${version#Compiler }" ]; then
             echo "Tag $RELEASE_TAG does not match $version." >&2
             exit 1
           fi
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v7
+        with:
+          name: compiler-${{ matrix.runtime }}
+          path: artifacts/release/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: compiler-*
+          path: artifacts/release
+          merge-multiple: true
 
       - name: Create GitHub release
         env:

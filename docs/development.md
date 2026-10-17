@@ -70,20 +70,21 @@ socket failures in Codex’s sandbox.
 
 ## Publish a native compiler
 
-On an Apple Silicon Mac, publish a single native `Compiler` executable:
+On an Apple Silicon Mac or Linux x86-64, publish a single native `Compiler`
+executable:
 
 ```sh
 ./scripts/publish.sh
-./artifacts/publish/osx-arm64/Release/Compiler data/return_2.c
 ```
 
-The script publishes a Release build using Native AOT for `osx-arm64`.
-It rejects Intel Macs and other platforms. Output goes to
-`artifacts/publish/osx-arm64/Release/`, which is ignored by Git.
+The script selects the host's runtime: `osx-arm64` on Apple Silicon or
+`linux-x64` on Linux x86-64. It rejects other platforms. It publishes a Release
+build using Native AOT to `artifacts/publish/<runtime>/Release/`, which is
+ignored by Git.
 Debug symbols are excluded from the publish output, leaving a single executable.
 
 The same script also creates
-`artifacts/release/compiler-<version>-osx-arm64.tar.gz`, using the version from
+`artifacts/release/compiler-<version>-<runtime>.tar.gz`, using the version from
 `Directory.Build.props`. Extracting it produces:
 
 ```text
@@ -93,12 +94,16 @@ compiler-0.1.0-osx-arm64/
 └── LICENSE
 ```
 
-Publishing requires the pinned .NET SDK, Xcode Command Line Tools, and NuGet
-access on the first run to restore the native compiler packages. The published
-binary runs without an installed .NET runtime, but still needs GCC on `PATH`.
-It still generates macOS x86-64 programs; running those programs on Apple
-Silicon requires Rosetta 2. Native publishing must run on macOS; ordinary
-managed builds remain available on other platforms.
+Publishing requires the pinned .NET SDK and the host's native toolchain:
+Xcode Command Line Tools on macOS, or Clang and zlib development headers on
+Linux (`sudo apt-get install clang zlib1g-dev` on Ubuntu). The first run needs
+NuGet access to restore the native compiler packages. Native AOT builds must
+run on the target OS; the script produces one package for its host per run.
+
+The published binary runs without an installed .NET runtime, but still needs
+GCC on `PATH`. It generates x86-64 programs for the host OS; running those
+programs on Apple Silicon requires Rosetta 2. Linux binaries require a
+compatible system library baseline; the release workflow builds on Ubuntu 26.04.
 
 ### Create a GitHub release
 
@@ -110,16 +115,20 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
 
-The [release workflow](../.github/workflows/release.yml) runs the Release tests,
-calls `scripts/publish.sh`, checks that the native executable's version matches
-the tag, and creates a GitHub Release with generated notes and the archive.
-It uses the same Apple Silicon runner as the test workflow and GitHub's built-in
-token; no additional secret is needed. Running `scripts/publish.sh` locally
-only builds and packages the compiler.
+The [release workflow](../.github/workflows/release.yml) first calls
+[`tests.yml`](../.github/workflows/tests.yml) for the tagged commit. All Debug
+and Release tests, including the book suite, must pass on both platforms
+before publishing starts. It then runs `scripts/publish.sh` on Apple Silicon
+(`xcode-27`) and Linux x86-64 (`ubuntu-26.04`). Each runner checks that its
+native executable's version matches the tag. After both builds succeed, a
+separate job creates one GitHub Release with generated notes and both archives.
+It uses GitHub's built-in token; no additional secret is needed. Running
+`scripts/publish.sh` locally only builds and packages the compiler.
 
 ### Download a release
 
-Download `compiler-<version>-osx-arm64.tar.gz` from
+Download `compiler-<version>-osx-arm64.tar.gz` for Apple Silicon or
+`compiler-<version>-linux-x64.tar.gz` for Linux x86-64 from
 [GitHub Releases](https://github.com/zachdillard/Compiler/releases) and extract it.
 The archive contains a versioned folder with `Compiler`, `README.md`, and `LICENSE`.
 Run `Compiler` from that folder, or add the folder to `PATH`:
@@ -128,8 +137,9 @@ Run `Compiler` from that folder, or add the folder to `PATH`:
 ./compiler-0.1.0-osx-arm64/Compiler program.c
 ```
 
-The native executable runs on Apple Silicon without .NET installed. GCC and
-Rosetta 2 are still required to compile and run the generated x86-64 programs.
+Both native executables run without .NET installed. GCC is still required to
+compile programs, and Apple Silicon also needs Rosetta 2 to run the generated
+x86-64 programs.
 
 ## Usage
 
@@ -222,10 +232,11 @@ partial output and assembly cleanup failures deterministically.
 
 [GitHub Actions](../.github/workflows/tests.yml) runs these builds and
 tests on the Apple Silicon `xcode-27` preview runner and Linux x86-64
-`ubuntu-latest` runner for pushes to `main` and pull requests that change
+`ubuntu-26.04` runner for pushes to `main` and pull requests targeting `main` that change
 `src/`, `tests/`, `scripts/`, `global.json`, `Directory.Build.props`, `Compiler.slnx`, or the
-workflow itself. It can also be started manually. It installs the SDK from
-`global.json` and checks GCC availability. Each configuration also runs the
+workflow itself. It can also be started manually or called by the release
+workflow. It installs the SDK from `global.json` and checks GCC availability.
+Each configuration also runs the
 chapter-one book suite in full and at the lex, parse, and codegen stages against
 a separate checkout of the upstream tests.
 
