@@ -67,6 +67,27 @@ The build script defaults to Debug and accepts `Debug` or `Release`.
 The build script uses `-m:1 --disable-build-servers` to avoid MSBuild worker
 socket failures in Codex’s sandbox.
 
+## Publish a native compiler
+
+On an Apple Silicon Mac, publish a single native `Compiler` executable:
+
+```sh
+./scripts/publish.sh
+./artifacts/publish/osx-arm64/Release/Compiler data/return_2.c
+```
+
+The script publishes a Release build using Native AOT for `osx-arm64`.
+It rejects Intel Macs and other platforms. Output goes to
+`artifacts/publish/osx-arm64/Release/`, which is ignored by Git.
+Debug symbols are excluded from the publish output, leaving a single executable.
+
+Publishing requires the pinned .NET SDK, Xcode Command Line Tools, and NuGet
+access on the first run to restore the native compiler packages. The published
+binary runs without an installed .NET runtime, but still needs GCC on `PATH`.
+It still generates macOS x86-64 programs; running those programs on Apple
+Silicon requires Rosetta 2. Native publishing must run on macOS; ordinary
+managed builds remain available on other platforms.
+
 ## Usage
 
 Compile a C source file or generate assembly only:
