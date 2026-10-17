@@ -14,17 +14,30 @@ fi
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$script_dir/.."
 
+version=$(dotnet msbuild src/Compiler.csproj -getProperty:Version)
+publish_dir=artifacts/publish/osx-arm64/Release
+package_name="compiler-$version-osx-arm64"
+package_dir="artifacts/release/$package_name"
+
 # Publish an optimized Release build for Apple Silicon. Native AOT compiles
 # ahead of time, so the executable runs without an installed .NET runtime.
 # Exclude debug symbols so the publish folder contains a single executable.
 #
 # Use one MSBuild worker and disable build servers to avoid sandbox socket errors.
-# exec replaces this shell with dotnet, preserving dotnet's exit code.
-exec dotnet publish src/Compiler.csproj \
+dotnet publish src/Compiler.csproj \
   --configuration Release \
   --runtime osx-arm64 \
-  --output artifacts/publish/osx-arm64/Release \
+  --output "$publish_dir" \
   -p:PublishAot=true \
   -p:CopyOutputSymbolsToPublishDirectory=false \
   -m:1 \
   --disable-build-servers
+
+# Package the executable and documentation inside one versioned folder.
+mkdir -p "$package_dir"
+cp "$publish_dir/Compiler" README.md LICENSE "$package_dir/"
+# Omit macOS metadata files (._*) from the archive.
+COPYFILE_DISABLE=1 tar -czf "artifacts/release/$package_name.tar.gz" \
+  -C artifacts/release "$package_name"
+
+echo "Created artifacts/release/$package_name.tar.gz"

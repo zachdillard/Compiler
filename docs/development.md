@@ -81,12 +81,54 @@ It rejects Intel Macs and other platforms. Output goes to
 `artifacts/publish/osx-arm64/Release/`, which is ignored by Git.
 Debug symbols are excluded from the publish output, leaving a single executable.
 
+The same script also creates
+`artifacts/release/compiler-<version>-osx-arm64.tar.gz`, using the version from
+`Directory.Build.props`. Extracting it produces:
+
+```text
+compiler-0.1.0-osx-arm64/
+├── Compiler
+├── README.md
+└── LICENSE
+```
+
 Publishing requires the pinned .NET SDK, Xcode Command Line Tools, and NuGet
 access on the first run to restore the native compiler packages. The published
 binary runs without an installed .NET runtime, but still needs GCC on `PATH`.
 It still generates macOS x86-64 programs; running those programs on Apple
 Silicon requires Rosetta 2. Native publishing must run on macOS; ordinary
 managed builds remain available on other platforms.
+
+### Create a GitHub release
+
+Update `Version` in `Directory.Build.props` and the changelog, then commit and
+push those changes. Create and push a matching version tag on that commit:
+
+```sh
+git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin v0.1.0
+```
+
+The [release workflow](../.github/workflows/release.yml) runs the Release tests,
+calls `scripts/publish.sh`, checks that the native executable's version matches
+the tag, and creates a GitHub Release with generated notes and the archive.
+It uses the same Apple Silicon runner as the test workflow and GitHub's built-in
+token; no additional secret is needed. Running `scripts/publish.sh` locally
+only builds and packages the compiler.
+
+### Download a release
+
+Download `compiler-<version>-osx-arm64.tar.gz` from
+[GitHub Releases](https://github.com/zachdillard/Compiler/releases) and extract it.
+The archive contains a versioned folder with `Compiler`, `README.md`, and `LICENSE`.
+Run `Compiler` from that folder, or add the folder to `PATH`:
+
+```sh
+./compiler-0.1.0-osx-arm64/Compiler program.c
+```
+
+The native executable runs on Apple Silicon without .NET installed. GCC and
+Rosetta 2 are still required to compile and run the generated x86-64 programs.
 
 ## Usage
 

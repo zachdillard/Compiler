@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: xcode-27
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Test
+        run: dotnet test --configuration Release -m:1 --disable-build-servers
+
+      - name: Publish and package
+        run: ./scripts/publish.sh
+
+      - name: Check native executable and release version
+        run: |
+          version=$(./artifacts/publish/osx-arm64/Release/Compiler --version)
+          if [ "$RELEASE_TAG" != "v${version#Compiler }" ]; then
+            echo "Tag $RELEASE_TAG does not match $version." >&2
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: >
+          gh release create "$RELEASE_TAG"
+          artifacts/release/*.tar.gz
+          --verify-tag
+          --generate-notes
