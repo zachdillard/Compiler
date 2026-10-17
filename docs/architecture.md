@@ -56,9 +56,8 @@ assembling or linking. Every mode removes the preprocessed `.i` file.
 
 `Lexer`, `Parser`, `Generator`, `Emitter`, and token types use the global namespace.
 The C AST and assembly AST live in `src/Syntax/` and use `Syntax.C` and `Syntax.Assembly`.
-The GCC stages (`Preprocessor` and `Assembler`), `Writer`, `SyntaxVisitor`, the
-visitor interfaces (`IVisitor` and `INode`), and `ExitCode` live in `src/Helpers/`
-and use `Helpers`. Tests use `CompilerIntegrationTests`.
+The GCC stages (`Preprocessor` and `Assembler`), `Writer`, and `ExitCode` live in
+`src/Helpers/` and use `Helpers`. Tests use `CompilerIntegrationTests`.
 `Driver.cs` constructs command-line options in a static method and orchestrates
 the compiler pipeline, including preprocessing-file cleanup and compiler diagnostics.
 
