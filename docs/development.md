@@ -98,10 +98,10 @@ To check the project and chapter-one book tests in both build configurations:
 ```sh
 dotnet build --configuration Debug -m:1 --disable-build-servers
 dotnet test --configuration Debug --no-build
-BUILD_CONFIGURATION=Debug ./tests/book_tests.sh --chapter 1
+BUILD_CONFIGURATION=Debug ./tests/book.sh --chapter 1
 dotnet build --configuration Release -m:1 --disable-build-servers
 dotnet test --configuration Release --no-build
-BUILD_CONFIGURATION=Release ./tests/book_tests.sh --chapter 1
+BUILD_CONFIGURATION=Release ./tests/book.sh --chapter 1
 ```
 
 ### What the tests cover
@@ -143,16 +143,16 @@ and the compiler prerequisites above. From the compiler repository root:
 ```sh
 git clone https://github.com/nlsandler/writing-a-c-compiler-tests.git \
   ../writing-a-c-compiler-tests
-./tests/book_tests.sh --chapter 1
+./tests/book.sh --chapter 1
 ```
 
 This runs the full chapter-one suite against the custom compiler, including
 valid programs and invalid lexing/parsing cases. To test individual stages, use:
 
 ```sh
-./tests/book_tests.sh --chapter 1 --stage lex
-./tests/book_tests.sh --chapter 1 --stage parse
-./tests/book_tests.sh --chapter 1 --stage codegen
+./tests/book.sh --chapter 1 --stage lex
+./tests/book.sh --chapter 1 --stage parse
+./tests/book.sh --chapter 1 --stage codegen
 ```
 
 The runner has no assembly-only stage; the project integration tests validate
@@ -168,7 +168,7 @@ For an existing checkout elsewhere:
 
 ```sh
 BOOK_TESTS_DIR="/path/to/writing-a-c-compiler-tests" \
-  ./tests/book_tests.sh --chapter 1
+  ./tests/book.sh --chapter 1
 ```
 
 See the
