@@ -1,0 +1,21 @@
+- A _compiler_ is a program that translates code from one programming languge to another
+- _This_ compiler will translate C to x64 assembly code targeting macOS
+- Additonal targets for Linux and ARM assembly will be explored but are not the main goal
+- It will be implemented in dotnet 11 and C# 15
+- The goal is to produce a single binary called _Compiler_ that runs on macOS natively
+- Current dev machine
+  - Apple Silicon ARM
+  - Running macOS 27
+  - Will need Rosetta to run the code
+  - macOS 28 is dropping Rosetta support 😧
+- The project should be buildable on other platforms
+- Will not be implementing other steps in the executable creation process like:
+  - Preprocessor
+    - Strips out comments
+    - Executes directives like `#include`
+    - Expands macros
+  - Assembler - turns text into object files
+  - Linker - combines object files into a single executable
+  - These will be handled by GCC
+
+
