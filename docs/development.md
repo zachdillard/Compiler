@@ -88,7 +88,7 @@ The same script also creates
 `Directory.Build.props`. Extracting it produces:
 
 ```text
-compiler-0.1.0-osx-arm64/
+compiler-0.0.1-alpha-osx-arm64/
 ├── Compiler
 ├── README.md
 └── LICENSE
@@ -108,11 +108,13 @@ compatible system library baseline; the release workflow builds on Ubuntu 26.04.
 ### Create a GitHub release
 
 Update `Version` in `Directory.Build.props` and the changelog, then commit and
-push those changes. Create and push a matching version tag on that commit:
+push those changes, then verify CI. For this alpha, stop for explicit confirmation
+before creating or pushing the release tag. Pushing the tag triggers publication.
+After confirmation, create and push a matching version tag on the reviewed commit:
 
 ```sh
-git tag -a v0.1.0 -m "Release v0.1.0"
-git push origin v0.1.0
+git tag -a v0.0.1-alpha -m "Release v0.0.1-alpha"
+git push origin v0.0.1-alpha
 ```
 
 The [release workflow](../.github/workflows/release.yml) first calls
@@ -122,7 +124,10 @@ before publishing starts. It then runs `scripts/publish.sh` on Apple Silicon
 (`xcode-27`) and Linux x86-64 (`ubuntu-26.04`). Each runner checks that its
 native executable's version matches the tag. After both builds succeed, a
 separate job creates one GitHub Release with generated notes and both archives.
-It uses GitHub's built-in token; no additional secret is needed. Running
+Tags with a prerelease suffix (such as `v0.0.1-alpha`) create a GitHub prerelease
+and are excluded from Latest. Stable tags retain normal release behavior. When
+`docs/releases/<tag>.md` exists, its contents precede the generated release notes.
+The workflow uses GitHub's built-in token; no additional secret is needed. Running
 `scripts/publish.sh` locally only builds and packages the compiler.
 
 ### Download a release
@@ -134,7 +139,7 @@ The archive contains a versioned folder with `Compiler`, `README.md`, and `LICEN
 Run `Compiler` from that folder, or add the folder to `PATH`:
 
 ```sh
-./compiler-0.1.0-osx-arm64/Compiler program.c
+./compiler-0.0.1-alpha-osx-arm64/Compiler program.c
 ```
 
 Both native executables run without .NET installed. GCC is still required to
@@ -305,7 +310,9 @@ requirements, and run instructions.
 
 ## Versioning
 
-Each `v0.N.0` release completes chapter N, including all earlier chapters.
+The initial `v0.0.1-alpha` prerelease is for testing chapter 1. Version `0.1.0`
+is reserved for the stable chapter 1 release. Each stable `v0.N.0` release
+completes chapter N, including all earlier chapters.
 Patch releases use `v0.N.P` for fixes within that chapter's scope. `v1.0.0`
 is reserved for a separate production-readiness milestone.
 

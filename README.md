@@ -38,6 +38,15 @@ and SDK troubleshooting.
 
 ## Quick Start
 
+### Test the alpha release
+
+The prepared chapter 1 testing release is `v0.0.1-alpha`; `0.1.0` is reserved
+for the stable chapter 1 release. Once published, download the macOS Arm64 or
+Linux x64 archive from [GitHub Releases](https://github.com/zachdillard/Compiler/releases).
+The native packages run without .NET installed; GCC and the platform requirements
+above still apply. See the [alpha release notes](docs/releases/v0.0.1-alpha.md)
+for extraction and usage instructions.
+
 ### Build the compiler
 
 Clone the repository and build:

@@ -15,7 +15,7 @@ public sealed class DriverTests
     var result = RunCompilerWithoutGcc("--version");
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
-    Assert.Equal($"Compiler 0.1.0{Environment.NewLine}", result.StandardOutput);
+    Assert.Equal($"Compiler 0.0.1-alpha{Environment.NewLine}", result.StandardOutput);
     Assert.Empty(result.StandardError);
   }
 

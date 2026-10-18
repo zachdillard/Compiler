@@ -1,6 +1,7 @@
 using Helpers;
 using System.CommandLine;
 using System.CommandLine.Help;
+using System.Reflection;
 using Assembly = Syntax.Assembly;
 using C = Syntax.C;
 
@@ -101,8 +102,9 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
       return null;
     }
 
-    var version = typeof(Lexer).Assembly.GetName().Version!;
-    Console.WriteLine($"Compiler {version.ToString(3)}");
+    var version = typeof(Lexer).Assembly
+      .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
+    Console.WriteLine($"Compiler {version}");
     return null;
   }
 
