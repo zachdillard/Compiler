@@ -1,3 +1,4 @@
+using Helpers;
 using Xunit;
 
 namespace CompilerIntegrationTests;
@@ -84,7 +85,7 @@ public sealed class LexerTests
   [InlineData("999999999999999999999999")]
   public void Run_OverflowingConstant_ThrowsDiagnostic(string source)
   {
-    CompileError exception = Assert.Throws<CompileError>(() => Lexer.Run(source));
+    Error exception = Assert.Throws<Error>(() => Lexer.Run(source));
 
     Assert.Equal("integer constant is outside the supported int range.", exception.Message);
   }
@@ -95,7 +96,7 @@ public sealed class LexerTests
   [InlineData("int main(void){return 1+2;}", "Unexpected character: '+'")]
   public void Run_UnsupportedCharacter_ThrowsDiagnostic(string source, string expected)
   {
-    CompileError exception = Assert.Throws<CompileError>(() => Lexer.Run(source));
+    Error exception = Assert.Throws<Error>(() => Lexer.Run(source));
 
     Assert.Equal(expected, exception.Message);
   }
@@ -105,7 +106,7 @@ public sealed class LexerTests
   [InlineData("123_abc")]
   public void Run_NumericIdentifier_ThrowsDiagnostic(string source)
   {
-    CompileError exception = Assert.Throws<CompileError>(() => Lexer.Run(source));
+    Error exception = Assert.Throws<Error>(() => Lexer.Run(source));
 
     Assert.Equal("Unexpected character: '1'", exception.Message);
   }

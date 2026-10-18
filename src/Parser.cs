@@ -1,3 +1,4 @@
+using Helpers;
 using C = Syntax.C;
 
 public class Parser
@@ -6,7 +7,7 @@ public class Parser
   {
     C.Program program = new(ParseFunction(tokens));
     if (tokens.Count != 0)
-      throw new CompileError("Unexpected tokens after the function.");
+      throw new Error("Unexpected tokens after the function.");
 
     return program;
   }
@@ -44,7 +45,7 @@ public class Parser
     if (TakeToken(tokens) is Identifier identifier)
       return identifier.Value;
 
-    throw new CompileError("Expected an identifier.");
+    throw new Error("Expected an identifier.");
   }
 
   private static int ParseInt(List<Token> tokens)
@@ -52,19 +53,19 @@ public class Parser
     if (TakeToken(tokens) is Constant constant)
       return constant.Value;
 
-    throw new CompileError("Expected an integer constant.");
+    throw new Error("Expected an integer constant.");
   }
 
   private static void Expect<T>(List<Token> tokens)
   {
     if (TakeToken(tokens) is not T)
-      throw new CompileError($"Expected {typeof(T).Name}.");
+      throw new Error($"Expected {typeof(T).Name}.");
   }
 
   private static Token TakeToken(List<Token> tokens)
   {
     if (tokens.Count == 0)
-      throw new CompileError("Unexpected end of input.");
+      throw new Error("Unexpected end of input.");
 
     Token token = tokens[0];
     tokens.RemoveAt(0);

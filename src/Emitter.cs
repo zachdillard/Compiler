@@ -4,20 +4,20 @@ using Assembly = Syntax.Assembly;
 
 public class Emitter
 {
-  public static string Run(Assembly.Program program, CompilationTarget target)
+  public static string Run(Assembly.Program program, Target target)
   {
     StringBuilder output = new();
     string symbol = target switch
     {
-      CompilationTarget.Mac => $"_{program.Function.Identifier}",
-      CompilationTarget.Linux => program.Function.Identifier,
+      Target.Mac => $"_{program.Function.Identifier}",
+      Target.Linux => program.Function.Identifier,
       _ => throw new InvalidOperationException("Unknown compilation target.")
     };
 
     output.AppendLine($"\t.globl {symbol}");
     output.Append(EmitFunction(program.Function, symbol));
 
-    if (target == CompilationTarget.Linux)
+    if (target == Target.Linux)
       output.AppendLine("\t.section .note.GNU-stack,\"\",@progbits");
 
     return output.ToString();

@@ -3,7 +3,7 @@ using System.Diagnostics;
 
 namespace Helpers;
 
-public static class Gcc
+public static class GCC
 {
   public static int Run(params string[] arguments)
   {

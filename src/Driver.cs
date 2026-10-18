@@ -10,11 +10,11 @@ var compilerArgs = CreateCompilerArguments(args, out var exitCode);
 if (compilerArgs is null)
   return exitCode;
 
-CompilationTarget target;
+Target target;
 if (OperatingSystem.IsMacOS())
-  target = CompilationTarget.Mac;
+  target = Target.Mac;
 else if (OperatingSystem.IsLinux())
-  target = CompilationTarget.Linux;
+  target = Target.Linux;
 else
 {
   Console.Error.WriteLine("Error: only macOS and Linux compilation targets are supported.");
@@ -22,7 +22,7 @@ else
 }
 
 // Linux uses the host's GCC toolchain, which must target x86-64.
-if (target == CompilationTarget.Linux && RuntimeInformation.OSArchitecture != Architecture.X64)
+if (target == Target.Linux && RuntimeInformation.OSArchitecture != Architecture.X64)
 {
   Console.Error.WriteLine("Error: Linux compilation requires an x86-64 host.");
   return ExitCode.Failure;
@@ -68,7 +68,7 @@ try
 
     return exitCode;
   }
-  catch (CompileError exception)
+  catch (Error exception)
   {
     Console.Error.WriteLine($"Error: {exception.Message}");
     return ExitCode.Failure;

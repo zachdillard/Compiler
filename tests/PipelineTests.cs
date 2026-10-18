@@ -17,7 +17,7 @@ public sealed class PipelineTests
     List<Token> tokens = Lexer.Run(source);
     C.Program program = Parser.Run(tokens);
     Assembly.Program assembly = Generator.Run(program);
-    string text = Emitter.Run(assembly, CompilationTarget.Mac);
+    string text = Emitter.Run(assembly, Target.Mac);
 
     Assert.Equal(expected, text);
   }

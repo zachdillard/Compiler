@@ -20,7 +20,7 @@ public sealed class EmitterTests
       new Assembly.Ret()
     ]));
 
-    string output = Emitter.Run(program, CompilationTarget.Mac);
+    string output = Emitter.Run(program, Target.Mac);
 
     Assert.Equal($"\t.globl _{identifier}\n_{identifier}:\n\tmovl ${immediate}, %eax\n\tret\n"
       .Replace("\n", Environment.NewLine), output);
@@ -40,7 +40,7 @@ public sealed class EmitterTests
       new Assembly.Ret()
     ]));
 
-    string output = Emitter.Run(program, CompilationTarget.Linux);
+    string output = Emitter.Run(program, Target.Linux);
 
     Assert.Equal($"\t.globl {identifier}\n{identifier}:\n\tmovl ${immediate}, %eax\n\tret\n\t.section .note.GNU-stack,\"\",@progbits\n"
       .Replace("\n", Environment.NewLine), output);
@@ -58,7 +58,7 @@ public sealed class EmitterTests
     string expected = string.Join(Environment.NewLine,
       "\t.globl _main", "_main:", "\tmovl $7, %eax", "\tmovl $42, %eax", "\tret", "");
 
-    Assert.Equal(expected, Emitter.Run(program, CompilationTarget.Mac));
+    Assert.Equal(expected, Emitter.Run(program, Target.Mac));
   }
 
   [Fact]
@@ -67,7 +67,7 @@ public sealed class EmitterTests
     Assembly.Program program = new(new Assembly.Function("empty", []));
     string expected = string.Join(Environment.NewLine, "\t.globl _empty", "_empty:", "");
 
-    Assert.Equal(expected, Emitter.Run(program, CompilationTarget.Mac));
+    Assert.Equal(expected, Emitter.Run(program, Target.Mac));
   }
 
   [Fact]
@@ -77,7 +77,7 @@ public sealed class EmitterTests
     string expected = string.Join(Environment.NewLine,
       "\t.globl empty", "empty:", "\t.section .note.GNU-stack,\"\",@progbits", "");
 
-    Assert.Equal(expected, Emitter.Run(program, CompilationTarget.Linux));
+    Assert.Equal(expected, Emitter.Run(program, Target.Linux));
   }
 
   [Theory]
@@ -88,7 +88,7 @@ public sealed class EmitterTests
     Assembly.Program program = new(new Assembly.Function("main", []));
 
     InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() =>
-      Emitter.Run(program, (CompilationTarget)target));
+      Emitter.Run(program, (Target)target));
 
     Assert.Equal("Unknown compilation target.", exception.Message);
   }
@@ -98,7 +98,7 @@ public sealed class EmitterTests
   {
     Assembly.Program program = new(new Assembly.Function("main", [default]));
 
-    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Emitter.Run(program, CompilationTarget.Mac));
+    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Emitter.Run(program, Target.Mac));
 
     Assert.Equal("Unknown assembly instruction.", exception.Message);
   }
@@ -112,7 +112,7 @@ public sealed class EmitterTests
     Assembly.Operand destination = invalidSource ? new Assembly.Register() : default(Assembly.Operand);
     Assembly.Program program = new(new Assembly.Function("main", [new Assembly.Mov(source, destination)]));
 
-    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Emitter.Run(program, CompilationTarget.Mac));
+    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Emitter.Run(program, Target.Mac));
 
     Assert.Equal("Unknown assembly operand.", exception.Message);
   }

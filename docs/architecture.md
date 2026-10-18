@@ -41,22 +41,22 @@ Each stage has one job:
 
 1. `Preprocessor` uses GCC to preprocess the C source.
 2. `Lexer` returns the typed tokens defined in `Token.cs`.
-3. `Parser` returns the C AST defined in `C.cs` and described in [c-ast.md](c-ast.md).
-4. `Generator` lowers the C AST to the assembly AST in `Assembly.cs`, described in [asm-ast.md](asm-ast.md).
-5. `Emitter` accepts a `CompilationTarget` (`Mac` or `Linux`) and returns the
+3. `Parser` returns the C AST defined in `Syntax.cs` and described in [c-ast.md](c-ast.md).
+4. `Generator` lowers the C AST to the assembly AST in `Syntax.cs`, described in [asm-ast.md](asm-ast.md).
+5. `Emitter` accepts a `Target` (`Mac` or `Linux`) and returns the
    corresponding x86-64 assembly text. Mac symbols have an underscore prefix;
    Linux symbols keep their C names, and Linux output includes a
    `.note.GNU-stack` section to mark the stack as non-executable.
 6. `Writer` saves the assembly to a `.s` file.
 7. `Assembler` uses GCC to assemble and link the executable.
 
-`Lexer` and `Parser` report problems in the C source with `CompileError`,
+`Lexer` and `Parser` report problems in the C source with `Helpers.Error`,
 which `Driver` prints as `Error: <message>`.
 
-`Driver` selects `CompilationTarget.Mac` when running on macOS and
-`CompilationTarget.Linux` when running on Linux. Other operating systems, and
+`Driver` selects `Target.Mac` when running on macOS and
+`Target.Linux` when running on Linux. Other operating systems, and
 Linux hosts that are not x86-64, are rejected before GCC is invoked. Both
-targets generate x86-64 code. The shared `Gcc` helper adds `-arch x86_64` on
+targets generate x86-64 code. The shared `GCC` helper adds `-arch x86_64` on
 macOS; Linux uses the native x86-64 GCC toolchain. `Driver` passes GCC absolute
 paths so a source named like `@file.c` is not read as a GCC response file.
 
@@ -70,10 +70,10 @@ The executable is written beside the source.
 
 ## C# namespaces
 
-`Lexer`, `Parser`, `Generator`, `Emitter`, `CompileError`, and token types use the global namespace.
-The C AST and assembly AST live in `src/Syntax/` and use `Syntax.C` and `Syntax.Assembly`.
-The GCC stages (`Preprocessor` and `Assembler`), their shared `Gcc` process
-helper, `Writer`, `ExitCode`, and `CompilationTarget` live in `src/Helpers/`
+`Lexer`, `Parser`, `Generator`, `Emitter`, and token types use the global namespace.
+The C AST and assembly AST live in `src/Syntax.cs` and use `Syntax.C` and `Syntax.Assembly`.
+The GCC stages (`Preprocessor` and `Assembler`), their shared `GCC` process
+helper, `Writer`, `Error`, `ExitCode`, and `Target` live in `src/Helpers/`
 and use `Helpers`. Tests use `CompilerIntegrationTests`.
 `Driver.cs` constructs command-line options in a static method and orchestrates
 the compiler pipeline, including temporary-directory cleanup and compiler diagnostics.

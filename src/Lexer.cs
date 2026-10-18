@@ -1,3 +1,4 @@
+using Helpers;
 using System.Text.RegularExpressions;
 
 public partial class Lexer
@@ -27,7 +28,7 @@ public partial class Lexer
       }
 
       if (!matched)
-        throw new CompileError($"Unexpected character: '{input[0]}'");
+        throw new Error($"Unexpected character: '{input[0]}'");
     }
 
     return tokens;
@@ -52,7 +53,7 @@ public partial class Lexer
     if (int.TryParse(text, out int value))
       return value;
 
-    throw new CompileError("integer constant is outside the supported int range.");
+    throw new Error("integer constant is outside the supported int range.");
   }
 
   [GeneratedRegex(@"\bint\b")]

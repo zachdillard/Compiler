@@ -1,6 +1,6 @@
 namespace Helpers;
 
-public enum CompilationTarget
+public enum Target
 {
   Mac,
   Linux
