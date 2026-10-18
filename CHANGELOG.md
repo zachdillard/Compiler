@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Intermediate `.i` and `.s` files are written to a private temporary directory,
+  so an existing `prog.i` or `prog.s` beside the source is no longer overwritten
+  and deleted. `-S` still writes `prog.s` beside the source.
+- Source files whose names start with `@` are no longer read by GCC as response
+  files of options.
+- Command-line errors, such as a repeated or unknown option, a missing source
+  file, or conflicting stage flags, are printed before the usage line.
+- Linux hosts that are not x86-64 are rejected up front with a clear error
+  instead of failing later with assembler errors.
+
 ## 0.0.1-alpha — Prepared for testing
 
 This chapter 1 alpha is a testing prerelease. Version `0.1.0` is reserved for

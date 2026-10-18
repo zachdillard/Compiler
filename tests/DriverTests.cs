@@ -1,5 +1,6 @@
 using Helpers;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.Versioning;
 using Xunit;
 
@@ -13,9 +14,11 @@ public sealed class DriverTests
   public void VersionDoesNotRequireGcc()
   {
     var result = RunCompilerWithoutGcc("--version");
+    var version = typeof(Lexer).Assembly
+      .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
-    Assert.Equal($"Compiler 0.0.1-alpha{Environment.NewLine}", result.StandardOutput);
+    Assert.Equal($"Compiler {version}{Environment.NewLine}", result.StandardOutput);
     Assert.Empty(result.StandardError);
   }
 
@@ -35,6 +38,7 @@ public sealed class DriverTests
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
+    Assert.Contains("Error: --version option cannot be combined with other arguments.", result.StandardError);
     Assert.Contains("Usage: Compiler", result.StandardError);
   }
 
@@ -44,6 +48,7 @@ public sealed class DriverTests
     var result = RunCompiler();
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Contains("Error: Required argument missing", result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
   }
 
@@ -66,18 +71,19 @@ public sealed class DriverTests
   }
 
   [Theory]
-  [InlineData("-S")]
-  [InlineData("--lex")]
-  [InlineData("--parse")]
-  [InlineData("--codegen")]
-  [InlineData("--assembly")]
-  [InlineData("-unknown")]
-  [InlineData("--version=false")]
-  public void MalformedArgumentsPrintUsageAndFail(string argument)
+  [InlineData("-S", "Error: Required argument missing")]
+  [InlineData("--lex", "Error: Required argument missing")]
+  [InlineData("--parse", "Error: Required argument missing")]
+  [InlineData("--codegen", "Error: Required argument missing")]
+  [InlineData("--assembly", "Error: Expected a source file path, not an option.")]
+  [InlineData("-unknown", "Error: Expected a source file path, not an option.")]
+  [InlineData("--version=false", "Error: --version option cannot be combined with other arguments.")]
+  public void MalformedArgumentsPrintErrorAndUsageAndFail(string argument, string error)
   {
     var result = RunCompiler(argument);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Contains(error, result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
   }
 
@@ -307,6 +313,8 @@ public sealed class DriverTests
 
       Assert.Equal(ExitCode.Failure, result.ExitCode);
       Assert.Empty(result.StandardOutput);
+      Assert.Contains("Error: Options '--lex', '--parse', '--codegen', and '-S' cannot be combined.",
+        result.StandardError);
       Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
       Assert.False(File.Exists(fixture.PreprocessedPath));
       Assert.False(File.Exists(fixture.AssemblyPath));
@@ -319,7 +327,7 @@ public sealed class DriverTests
   [InlineData("--lex")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
-  public void DuplicateFlagsPrintUsageAndFail(string option)
+  public void DuplicateFlagsPrintErrorAndUsageAndFail(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
@@ -327,6 +335,7 @@ public sealed class DriverTests
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
+    Assert.Contains($"Error: Option '{option}' cannot be repeated.", result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
@@ -345,7 +354,7 @@ public sealed class DriverTests
   [InlineData("--codegen=true")]
   [InlineData("--codegen=false")]
   [InlineData("extra.c")]
-  public void InvalidArgumentsWithSourcePrintUsageAndProduceNoFiles(string argument)
+  public void InvalidArgumentsWithSourcePrintErrorAndUsageAndProduceNoFiles(string argument)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
@@ -353,6 +362,7 @@ public sealed class DriverTests
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
+    Assert.Contains($"Error: Unrecognized command or argument '{fixture.SourcePath}'.", result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
@@ -451,21 +461,71 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void PreprocessedCleanupFailureReturnsDiagnostic()
+  [Theory]
+  [InlineData("")]
+  [InlineData("--lex")]
+  [InlineData("--parse")]
+  [InlineData("--codegen")]
+  [InlineData("-S")]
+  public void ExistingIntermediateFilesBesideSourceArePreserved(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
-    Directory.CreateDirectory(fixture.PreprocessedPath);
+    File.WriteAllText(fixture.PreprocessedPath, "hand-written preprocessed file");
+    File.WriteAllText(fixture.AssemblyPath, "hand-written assembly file");
 
-    var result = RunCompiler(fixture.SourcePath);
+    var result = RunCompilerWithOption(option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
-    Assert.Contains("Error: could not access a compiler file:", result.StandardError);
-    Assert.DoesNotContain("Unhandled exception", result.StandardError);
+    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Empty(result.StandardError);
+    Assert.Equal("hand-written preprocessed file", File.ReadAllText(fixture.PreprocessedPath));
+    Assert.Equal(option == "-S" ? ExpectedHostAssembly : "hand-written assembly file",
+      File.ReadAllText(fixture.AssemblyPath));
+  }
+
+  [Theory]
+  [InlineData("", "int main(void) { return 7; }")]
+  [InlineData("--lex", "int main(void) { return 7; }")]
+  [InlineData("--codegen", "int main(void) { return 7; }")]
+  [InlineData("-S", "int main(void) { return 7; }")]
+  [InlineData("", "int main(void) { return 7 }")]
+  [InlineData("", "int other(void) { return 7; }")]
+  public void TemporaryDirectoryIsRemoved(string option, string source)
+  {
+    using var fixture = new TestFixture(source);
+    string temporaryDirectory = fixture.CreateDirectory("tmp");
+
+    RunCompilerWithEnvironment(
+      option == string.Empty ? [fixture.SourcePath] : [option, fixture.SourcePath],
+      temporaryDirectory: temporaryDirectory);
+
+    Assert.Empty(Directory.GetDirectories(temporaryDirectory, "compiler-*"));
+  }
+
+  [Fact]
+  public void SourceNameStartingWithAtSignIsNotReadAsGccOptions()
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }", "@program.c");
+    // GCC would read program.c as a response file of options for a relative @program.c argument.
+    string responseFile = Path.Combine(fixture.DirectoryPath, "program.c");
+    File.WriteAllText(responseFile, "--version");
+
+    var result = RunCompilerWithEnvironment(["@program.c"], workingDirectory: fixture.DirectoryPath);
+
+    Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
-    Assert.True(Directory.Exists(fixture.PreprocessedPath));
-    Assert.False(File.Exists(fixture.AssemblyPath));
-    Assert.False(File.Exists(fixture.ExecutablePath));
+    Assert.Empty(result.StandardError);
+    Assert.Equal("--version", File.ReadAllText(responseFile));
+
+    using var executable = Process.Start(new ProcessStartInfo
+    {
+      FileName = fixture.ExecutablePath,
+      UseShellExecute = false,
+      RedirectStandardOutput = true,
+      RedirectStandardError = true
+    });
+    Assert.NotNull(executable);
+    executable.WaitForExit();
+    Assert.Equal(7, executable.ExitCode);
   }
 
   [Fact]
@@ -477,41 +537,6 @@ public sealed class DriverTests
     var result = RunCompiler("-S", fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
-    Assert.Contains("Error: could not access a compiler file:", result.StandardError);
-    Assert.DoesNotContain("Unhandled exception", result.StandardError);
-    Assert.Empty(result.StandardOutput);
-    Assert.False(File.Exists(fixture.PreprocessedPath));
-    Assert.True(Directory.Exists(fixture.AssemblyPath));
-    Assert.False(File.Exists(fixture.ExecutablePath));
-  }
-
-  [Theory]
-  [InlineData(0)]
-  [InlineData(1)]
-  public void AssemblyCleanupFailureReturnsDiagnostic(int assemblerExitCode)
-  {
-    using var fixture = new TestFixture("int main(void) { return 7; }");
-    string gccDirectory = fixture.CreateGcc($$"""
-      if [ "$1" = '-E' ]; then
-        /bin/cp "$3" "$5"
-        exit 0
-      fi
-      for argument in "$@"; do
-        case "$argument" in
-          *.s)
-            /bin/rm "$argument"
-            /bin/mkdir "$argument"
-            ;;
-        esac
-      done
-      echo 'assembler diagnostic' >&2
-      exit {{assemblerExitCode}}
-      """);
-
-    var result = RunCompilerWithEnvironment([fixture.SourcePath], gccDirectory: gccDirectory);
-
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
-    Assert.Contains("assembler diagnostic", result.StandardError);
     Assert.Contains("Error: could not access a compiler file:", result.StandardError);
     Assert.DoesNotContain("Unhandled exception", result.StandardError);
     Assert.Empty(result.StandardOutput);
@@ -642,7 +667,8 @@ public sealed class DriverTests
     return RunCompilerWithEnvironment(arguments, withoutGcc: true);
   }
 
-  private static ProcessResult RunCompilerWithEnvironment(string[] arguments, bool withoutGcc = false, string? gccDirectory = null)
+  private static ProcessResult RunCompilerWithEnvironment(string[] arguments, bool withoutGcc = false,
+    string? gccDirectory = null, string? temporaryDirectory = null, string? workingDirectory = null)
   {
     var compilerAssembly = typeof(Lexer).Assembly.Location;
     var testAssembly = typeof(DriverTests).Assembly.Location;
@@ -676,6 +702,12 @@ public sealed class DriverTests
     else if (gccDirectory is not null)
       startInfo.Environment["PATH"] = gccDirectory;
 
+    if (temporaryDirectory is not null)
+      startInfo.Environment["TMPDIR"] = temporaryDirectory;
+
+    if (workingDirectory is not null)
+      startInfo.WorkingDirectory = workingDirectory;
+
     using var process = Process.Start(startInfo);
     Assert.NotNull(process);
 
@@ -699,14 +731,20 @@ public sealed class DriverTests
       File.WriteAllText(SourcePath, source);
     }
 
+    public string DirectoryPath => directory;
     public string SourcePath { get; }
     public string PreprocessedPath => Path.ChangeExtension(SourcePath, ".i");
     public string AssemblyPath => Path.ChangeExtension(SourcePath, ".s");
     public string ExecutablePath => Path.ChangeExtension(SourcePath, null);
 
+    public string CreateDirectory(string name)
+    {
+      return Directory.CreateDirectory(Path.Combine(directory, name)).FullName;
+    }
+
     public string CreateGcc(string script)
     {
-      string gccDirectory = Directory.CreateDirectory(Path.Combine(directory, "tools")).FullName;
+      string gccDirectory = CreateDirectory("tools");
       string gccPath = Path.Combine(gccDirectory, "gcc");
       File.WriteAllText(gccPath, $"#!/bin/sh\nset -eu\n{script}\n");
       File.SetUnixFileMode(gccPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
