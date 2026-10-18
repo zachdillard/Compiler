@@ -50,25 +50,33 @@ Each stage has one job:
 6. `Writer` saves the assembly to a `.s` file.
 7. `Assembler` uses GCC to assemble and link the executable.
 
+`Lexer` and `Parser` report problems in the C source with `CompileError`,
+which `Driver` prints as `Error: <message>`.
+
 `Driver` selects `CompilationTarget.Mac` when running on macOS and
-`CompilationTarget.Linux` when running on Linux. Other operating systems are
-rejected before GCC is invoked. Both targets generate x86-64 code. The GCC
-helpers add `-arch x86_64` on macOS; Linux uses the native x86-64 GCC toolchain.
+`CompilationTarget.Linux` when running on Linux. Other operating systems, and
+Linux hosts that are not x86-64, are rejected before GCC is invoked. Both
+targets generate x86-64 code. The shared `Gcc` helper adds `-arch x86_64` on
+macOS; Linux uses the native x86-64 GCC toolchain. `Driver` passes GCC absolute
+paths so a source named like `@file.c` is not read as a GCC response file.
 
 The mutually exclusive stage flags stop after lexing (`--lex`), parsing
 (`--parse`), assembly AST generation (`--codegen`), or writing assembly (`-S`).
-The first three produce no output files; `-S` leaves a `.s` file without
-assembling or linking. Every mode removes the preprocessed `.i` file.
+The first three produce no output files; `-S` leaves a `.s` file beside the
+source without assembling or linking. The preprocessed `.i` file, and the `.s`
+file without `-S`, are written to a private temporary directory that is removed
+when compilation finishes, so existing files beside the source are untouched.
+The executable is written beside the source.
 
 ## C# namespaces
 
-`Lexer`, `Parser`, `Generator`, `Emitter`, and token types use the global namespace.
+`Lexer`, `Parser`, `Generator`, `Emitter`, `CompileError`, and token types use the global namespace.
 The C AST and assembly AST live in `src/Syntax/` and use `Syntax.C` and `Syntax.Assembly`.
-The GCC stages (`Preprocessor` and `Assembler`), `Writer`, `ExitCode`, and
-`CompilationTarget` live in `src/Helpers/` and use `Helpers`. Tests use
-`CompilerIntegrationTests`.
+The GCC stages (`Preprocessor` and `Assembler`), their shared `Gcc` process
+helper, `Writer`, `ExitCode`, and `CompilationTarget` live in `src/Helpers/`
+and use `Helpers`. Tests use `CompilerIntegrationTests`.
 `Driver.cs` constructs command-line options in a static method and orchestrates
-the compiler pipeline, including preprocessing-file cleanup and compiler diagnostics.
+the compiler pipeline, including temporary-directory cleanup and compiler diagnostics.
 
 See the [README usage instructions](../README.md#usage) for compiler options
 and examples.
