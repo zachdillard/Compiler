@@ -6,6 +6,8 @@
     <LangVersion>preview</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Publish with Native AOT and run its analyzers on every build. -->
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>

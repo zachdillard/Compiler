@@ -82,6 +82,8 @@ The script selects the host's runtime: `osx-arm64` on Apple Silicon or
 build using Native AOT to `artifacts/publish/<runtime>/Release/`, which is
 ignored by Git.
 Debug symbols are excluded from the publish output, leaving a single executable.
+`src/Compiler.csproj` sets `PublishAot`, so every build also runs the Native AOT
+and trimming analyzers, and `Directory.Build.props` treats warnings as errors.
 
 The same script also creates
 `artifacts/release/compiler-<version>-<runtime>.tar.gz`, using the version from
@@ -103,14 +105,24 @@ run on the target OS; the script produces one package for its host per run.
 The published binary runs without an installed .NET runtime, but still needs
 GCC on `PATH`. It generates x86-64 programs for the host OS; running those
 programs on Apple Silicon requires Rosetta 2. Linux binaries require a
-compatible system library baseline; the release workflow builds on Ubuntu 26.04.
+compatible system library baseline; the release workflow builds on Ubuntu 24.04.
 
 ### Create a GitHub release
 
-Update `Version` in `Directory.Build.props` and the changelog, then commit and
-push those changes, then verify CI. For this alpha, stop for explicit confirmation
-before creating or pushing the release tag. Pushing the tag triggers publication.
-After confirmation, create and push a matching version tag on the reviewed commit:
+Update `Version` in `Directory.Build.props` and the changelog, and add release
+notes as `docs/releases/v<version>.md`. Commit and push those changes, then
+verify CI. To rehearse a release, run the release workflow manually. This dry
+run tests, builds, and uploads both packages as workflow artifacts but never
+publishes, even when started on a tag. Run from a branch, it also skips the
+tag check:
+
+```sh
+gh workflow run release.yml --ref main
+```
+
+For this alpha, stop for explicit confirmation before creating or pushing the
+release tag. Only pushing the tag triggers publication. After confirmation,
+create and push a matching version tag on the reviewed commit:
 
 ```sh
 git tag -a v0.0.1-alpha -m "Release v0.0.1-alpha"
@@ -121,13 +133,18 @@ The [release workflow](../.github/workflows/release.yml) first calls
 [`tests.yml`](../.github/workflows/tests.yml) for the tagged commit. All Debug
 and Release tests, including the book suite, must pass on both platforms
 before publishing starts. It then runs `scripts/publish.sh` on Apple Silicon
-(`xcode-27`) and Linux x86-64 (`ubuntu-26.04`). Each runner checks that its
-native executable's version matches the tag. After both builds succeed, a
-separate job creates one GitHub Release with generated notes and both archives.
-Tags with a prerelease suffix (such as `v0.0.1-alpha`) create a GitHub prerelease
-and are excluded from Latest. Stable tags retain normal release behavior. When
-`docs/releases/<tag>.md` exists, its contents precede the generated release notes.
-The workflow uses GitHub's built-in token; no additional secret is needed. Running
+(`xcode-27`) and Linux x86-64 (`ubuntu-24.04`) and runs the chapter-one book
+suite against each native executable. For tags, each runner also checks that
+its executable's version matches the tag and that `docs/releases/<tag>.md`
+exists. After both builds succeed, a separate job creates build provenance
+attestations for both archives, then one GitHub Release that uses
+`docs/releases/<tag>.md` as its notes. Tags with a prerelease suffix (such as
+`v0.0.1-alpha`) create a GitHub prerelease and are excluded from Latest. Stable
+tags retain normal release behavior.
+
+The workflow uses GitHub's built-in token; no additional secret is needed. Only
+the release job can write to the repository and sign attestations; the build
+job, which restores packages and runs tests, has a read-only token. Running
 `scripts/publish.sh` locally only builds and packages the compiler.
 
 ### Download a release
@@ -145,6 +162,14 @@ Run `Compiler` from that folder, or add the folder to `PATH`:
 Both native executables run without .NET installed. GCC is still required to
 compile programs, and Apple Silicon also needs Rosetta 2 to run the generated
 x86-64 programs.
+
+Releases after `v0.0.1-alpha` include build provenance attestations. To check
+that an archive was built by this repository's release workflow, verify it with
+the [GitHub CLI](https://cli.github.com/):
+
+```sh
+gh attestation verify compiler-<version>-<runtime>.tar.gz --repo zachdillard/Compiler
+```
 
 ## Usage
 
@@ -237,13 +262,20 @@ partial output and assembly cleanup failures deterministically.
 
 [GitHub Actions](../.github/workflows/tests.yml) runs these builds and
 tests on the Apple Silicon `xcode-27` preview runner and Linux x86-64
-`ubuntu-26.04` runner for pushes to `main` and pull requests targeting `main` that change
-`src/`, `tests/`, `scripts/`, `global.json`, `Directory.Build.props`, `Compiler.slnx`, or the
-workflow itself. It can also be started manually or called by the release
-workflow. It installs the SDK from `global.json` and checks GCC availability.
-Each configuration also runs the
-chapter-one book suite in full and at the lex, parse, and codegen stages against
-a separate checkout of the upstream tests.
+`ubuntu-24.04` runner, the same Ubuntu version as the Linux release build, for
+every push to `main` and every pull request targeting `main`. Because it always
+runs, the Tests check can be a required status check.
+It can also be started manually or called by the release workflow. It installs
+the SDK from `global.json` and checks GCC availability. Each configuration also
+runs the chapter-one book suite in full and at the lex, parse, and codegen
+stages against a separate checkout of the upstream tests. That checkout is
+pinned to a reviewed commit because CI runs its Python; update the `ref` in
+both workflows to use newer tests.
+
+The workflows use a read-only token by default and do not keep Git credentials
+in their checkouts (`persist-credentials: false`).
+[Dependabot](../.github/dependabot.yml) checks GitHub Actions and NuGet
+packages monthly and groups each ecosystem's updates into one pull request.
 
 ### Optional book tests
 
