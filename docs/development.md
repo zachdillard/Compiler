@@ -111,17 +111,18 @@ compatible system library baseline; the release workflow builds on Ubuntu 24.04.
 
 Update `Version` in `Directory.Build.props` and the changelog, and add release
 notes as `docs/releases/v<version>.md`. Commit and push those changes, then
-verify CI. To rehearse a release, run the release workflow manually from a
-branch. This dry run tests, builds, and uploads both packages as workflow
-artifacts, but skips the tag check and does not publish:
+verify CI. To rehearse a release, run the release workflow manually. This dry
+run tests, builds, and uploads both packages as workflow artifacts but never
+publishes, even when started on a tag. Run from a branch, it also skips the
+tag check:
 
 ```sh
 gh workflow run release.yml --ref main
 ```
 
 For this alpha, stop for explicit confirmation before creating or pushing the
-release tag. Pushing the tag triggers publication. After confirmation, create
-and push a matching version tag on the reviewed commit:
+release tag. Only pushing the tag triggers publication. After confirmation,
+create and push a matching version tag on the reviewed commit:
 
 ```sh
 git tag -a v0.0.1-alpha -m "Release v0.0.1-alpha"
@@ -261,8 +262,9 @@ partial output and assembly cleanup failures deterministically.
 
 [GitHub Actions](../.github/workflows/tests.yml) runs these builds and
 tests on the Apple Silicon `xcode-27` preview runner and Linux x86-64
-`ubuntu-26.04` runner for every push to `main` and every pull request targeting
-`main`. Because it always runs, the Tests check can be a required status check.
+`ubuntu-24.04` runner, the same Ubuntu version as the Linux release build, for
+every push to `main` and every pull request targeting `main`. Because it always
+runs, the Tests check can be a required status check.
 It can also be started manually or called by the release workflow. It installs
 the SDK from `global.json` and checks GCC availability. Each configuration also
 runs the chapter-one book suite in full and at the lex, parse, and codegen

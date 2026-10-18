@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [xcode-27, ubuntu-26.04]
+        os: [xcode-27, ubuntu-24.04]
         configuration: [Debug, Release]
     steps:
       - uses: actions/checkout@v7
