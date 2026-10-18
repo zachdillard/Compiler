@@ -4,7 +4,8 @@ on:
   push:
     tags: ['v*']
   # A manual run is a dry run: it tests, builds, and uploads the packages
-  # without creating a release. Releases only run for v* tags.
+  # without creating a release, even when started on a tag. Only pushing a
+  # v* tag publishes.
   workflow_dispatch:
 
 permissions:
@@ -25,7 +26,7 @@ jobs:
         include:
           - os: xcode-27
             runtime: osx-arm64
-          # Build on an older Ubuntu so the binary needs an older glibc.
+          # Ubuntu 24.04's older glibc lets the binary run on more Linux systems.
           - os: ubuntu-24.04
             runtime: linux-x64
     steps:
@@ -86,8 +87,8 @@ jobs:
 
   release:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-26.04
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
     # Only this job can write. The build job, which restores packages and
     # runs tests, only reads.
     permissions:
