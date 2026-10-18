@@ -10,6 +10,7 @@
   - Running macOS 27
   - Will need Rosetta to run the code
   - macOS 28 is dropping Rosetta support 😧
+  - .NET 11 GA is sometime in November 2026
 - The project should be buildable on other platforms
 - Will not be implementing other steps in the executable creation process like:
   - Preprocessor
