@@ -23,8 +23,9 @@ publish_dir="artifacts/publish/$runtime/Release"
 package_name="compiler-$version-$runtime"
 package_dir="artifacts/release/$package_name"
 
-# Publish an optimized Release build for the host. Native AOT compiles
-# ahead of time, so the executable runs without an installed .NET runtime.
+# Publish an optimized Release build for the host. Compiler.csproj enables
+# Native AOT, which compiles ahead of time, so the executable runs without an
+# installed .NET runtime.
 # Exclude debug symbols so the publish folder contains a single executable.
 #
 # Use one MSBuild worker and disable build servers to avoid sandbox socket errors.
@@ -32,7 +33,6 @@ dotnet publish src/Compiler.csproj \
   --configuration Release \
   --runtime "$runtime" \
   --output "$publish_dir" \
-  -p:PublishAot=true \
   -p:CopyOutputSymbolsToPublishDirectory=false \
   -m:1 \
   --disable-build-servers

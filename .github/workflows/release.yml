@@ -3,17 +3,19 @@ name: Release
 on:
   push:
     tags: ['v*']
+  # A manual run is a dry run: it tests, builds, and uploads the packages
+  # without creating a release, even when started on a tag. Only pushing a
+  # v* tag publishes.
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   RELEASE_TAG: ${{ github.ref_name }}
 
 jobs:
   tests:
-    permissions:
-      contents: read
     uses: ./.github/workflows/tests.yml
 
   build:
@@ -24,11 +26,14 @@ jobs:
         include:
           - os: xcode-27
             runtime: osx-arm64
-          - os: ubuntu-26.04
+          # Ubuntu 24.04's older glibc lets the binary run on more Linux systems.
+          - os: ubuntu-24.04
             runtime: linux-x64
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -41,13 +46,35 @@ jobs:
       - name: Publish and package
         run: ./scripts/publish.sh
 
-      - name: Check native executable and release version
+      - name: Check out book tests
+        uses: actions/checkout@v7
+        with:
+          repository: nlsandler/writing-a-c-compiler-tests
+          # Pin the commit because this job runs the repository's Python.
+          ref: ae12014d2dec14488f3f80d14df4b6d8e4634d7d
+          path: artifacts/writing-a-c-compiler-tests
+          persist-credentials: false
+
+      - name: Book tests against native executable
+        env:
+          RUNTIME: ${{ matrix.runtime }}
+        run: |
+          python3 artifacts/writing-a-c-compiler-tests/test_compiler \
+            "$PWD/artifacts/publish/$RUNTIME/Release/Compiler" \
+            --chapter 1
+
+      - name: Check release version and notes
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           RUNTIME: ${{ matrix.runtime }}
         run: |
           version=$(./artifacts/publish/"$RUNTIME"/Release/Compiler --version)
           if [ "$RELEASE_TAG" != "v${version#Compiler }" ]; then
             echo "Tag $RELEASE_TAG does not match $version." >&2
+            exit 1
+          fi
+          if [ ! -f "docs/releases/$RELEASE_TAG.md" ]; then
+            echo "Missing release notes: docs/releases/$RELEASE_TAG.md." >&2
             exit 1
           fi
 
@@ -60,15 +87,29 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-26.04
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    # Only this job can write. The build job, which restores packages and
+    # runs tests, only reads.
+    permissions:
+      contents: write # Create the GitHub release.
+      id-token: write # Sign the attestation with a short-lived certificate.
+      attestations: write # Store the attestation on GitHub.
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/download-artifact@v8
         with:
           pattern: compiler-*
           path: artifacts/release
           merge-multiple: true
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/release/*.tar.gz
 
       - name: Create GitHub release
         env:
@@ -79,13 +120,9 @@ jobs:
           case "$RELEASE_TAG" in
             *-*) set -- --prerelease --latest=false ;;
           esac
-          notes_file="docs/releases/$RELEASE_TAG.md"
-          if [ -f "$notes_file" ]; then
-            set -- "$@" --notes-file "$notes_file"
-          fi
           gh release create "$RELEASE_TAG" \
             artifacts/release/*.tar.gz \
             --verify-tag \
             --title "$RELEASE_TAG" \
-            --generate-notes \
+            --notes-file "docs/releases/$RELEASE_TAG.md" \
             "$@"
