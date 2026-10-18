@@ -31,7 +31,7 @@ public sealed class ParserTests
   {
     List<Token> tokens = Lexer.Run(source);
 
-    Assert.Throws<InvalidOperationException>(() => Parser.Run(tokens));
+    Assert.Throws<CompileError>(() => Parser.Run(tokens));
   }
 
   [Theory]
@@ -49,7 +49,7 @@ public sealed class ParserTests
   {
     List<Token> tokens = FunctionTokens("main", 42).GetRange(0, length);
 
-    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Parser.Run(tokens));
+    CompileError exception = Assert.Throws<CompileError>(() => Parser.Run(tokens));
 
     Assert.Equal("Unexpected end of input.", exception.Message);
   }
@@ -71,7 +71,7 @@ public sealed class ParserTests
     // Semicolon is incorrect everywhere except its own grammar position.
     tokens[position] = position == 8 ? new Int() : new Semicolon();
 
-    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Parser.Run(tokens));
+    CompileError exception = Assert.Throws<CompileError>(() => Parser.Run(tokens));
 
     Assert.Equal(expected, exception.Message);
   }
@@ -87,7 +87,7 @@ public sealed class ParserTests
     else
       tokens.Add(new Semicolon());
 
-    InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => Parser.Run(tokens));
+    CompileError exception = Assert.Throws<CompileError>(() => Parser.Run(tokens));
 
     Assert.Equal("Unexpected tokens after the function.", exception.Message);
   }

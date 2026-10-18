@@ -6,7 +6,7 @@ public class Parser
   {
     C.Program program = new(ParseFunction(tokens));
     if (tokens.Count != 0)
-      throw new InvalidOperationException("Unexpected tokens after the function.");
+      throw new CompileError("Unexpected tokens after the function.");
 
     return program;
   }
@@ -44,7 +44,7 @@ public class Parser
     if (TakeToken(tokens) is Identifier identifier)
       return identifier.Value;
 
-    throw new InvalidOperationException("Expected an identifier.");
+    throw new CompileError("Expected an identifier.");
   }
 
   private static int ParseInt(List<Token> tokens)
@@ -52,19 +52,19 @@ public class Parser
     if (TakeToken(tokens) is Constant constant)
       return constant.Value;
 
-    throw new InvalidOperationException("Expected an integer constant.");
+    throw new CompileError("Expected an integer constant.");
   }
 
   private static void Expect<T>(List<Token> tokens)
   {
     if (TakeToken(tokens) is not T)
-      throw new InvalidOperationException($"Expected {typeof(T).Name}.");
+      throw new CompileError($"Expected {typeof(T).Name}.");
   }
 
   private static Token TakeToken(List<Token> tokens)
   {
     if (tokens.Count == 0)
-      throw new InvalidOperationException("Unexpected end of input.");
+      throw new CompileError("Unexpected end of input.");
 
     Token token = tokens[0];
     tokens.RemoveAt(0);

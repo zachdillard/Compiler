@@ -2,6 +2,7 @@ using Helpers;
 using System.CommandLine;
 using System.CommandLine.Help;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Assembly = Syntax.Assembly;
 using C = Syntax.C;
 
@@ -20,15 +21,31 @@ else
   return ExitCode.Failure;
 }
 
+// Linux uses the host's GCC toolchain, which must target x86-64.
+if (target == CompilationTarget.Linux && RuntimeInformation.OSArchitecture != Architecture.X64)
+{
+  Console.Error.WriteLine("Error: Linux compilation requires an x86-64 host.");
+  return ExitCode.Failure;
+}
+
 try
 {
+  // Intermediate files go in a private directory so files beside the source are never touched.
+  var temporaryDirectory = Directory.CreateTempSubdirectory("compiler-").FullName;
   try
   {
-    exitCode = Preprocessor.Run(compilerArgs.InputFile, compilerArgs.PreprocessedFile, x86_64: true);
+    var name = Path.GetFileNameWithoutExtension(compilerArgs.InputFile);
+    var preprocessedFile = Path.Combine(temporaryDirectory, $"{name}.i");
+    var assemblyFile = compilerArgs.AssemblyOnly
+      ? Path.ChangeExtension(compilerArgs.InputFile, ".s")
+      : Path.Combine(temporaryDirectory, $"{name}.s");
+    var outputFile = Path.ChangeExtension(compilerArgs.InputFile, null);
+
+    exitCode = Preprocessor.Run(compilerArgs.InputFile, preprocessedFile);
     if (exitCode != ExitCode.Success)
       return exitCode;
 
-    List<Token> tokens = Lexer.Run(File.ReadAllText(compilerArgs.PreprocessedFile));
+    List<Token> tokens = Lexer.Run(File.ReadAllText(preprocessedFile));
     if (compilerArgs.LexOnly)
       return ExitCode.Success;
 
@@ -41,31 +58,25 @@ try
       return ExitCode.Success;
 
     string output = Emitter.Run(assembly, target);
-    Writer.Run(output, compilerArgs.AssemblyFile);
+    Writer.Run(output, assemblyFile);
+    if (compilerArgs.AssemblyOnly)
+      return ExitCode.Success;
+
+    exitCode = Assembler.Run(assemblyFile, outputFile);
+    if (exitCode != ExitCode.Success)
+      Console.Error.WriteLine("Error: could not assemble and link the program.");
+
+    return exitCode;
   }
-  catch (InvalidOperationException exception)
+  catch (CompileError exception)
   {
     Console.Error.WriteLine($"Error: {exception.Message}");
     return ExitCode.Failure;
   }
-  catch (OverflowException)
-  {
-    Console.Error.WriteLine("Error: integer constant is outside the supported int range.");
-    return ExitCode.Failure;
-  }
   finally
   {
-    File.Delete(compilerArgs.PreprocessedFile);
+    Directory.Delete(temporaryDirectory, recursive: true);
   }
-
-  if (compilerArgs.AssemblyOnly)
-    return ExitCode.Success;
-
-  exitCode = Assembler.Run(compilerArgs.AssemblyFile, compilerArgs.OutputFile, x86_64: true);
-  if (exitCode != ExitCode.Success)
-    Console.Error.WriteLine("Error: could not assemble and link the program.");
-
-  return exitCode;
 }
 catch (IOException exception)
 {
@@ -97,6 +108,7 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
   {
     if (args is not ["--version"])
     {
+      Console.Error.WriteLine("Error: --version option cannot be combined with other arguments.");
       Console.Error.WriteLine(Usage);
       exitCode = ExitCode.Failure;
       return null;
@@ -116,6 +128,8 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
 
   if (result.Errors.Count != 0)
   {
+    foreach (var error in result.Errors)
+      Console.Error.WriteLine($"Error: {error.Message}");
     Console.Error.WriteLine(Usage);
     exitCode = ExitCode.Failure;
     return null;
@@ -127,6 +141,7 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
   var codegenOnly = result.GetValue(commandLine.CodegenOnlyOption);
   if (new[] { lexOnly, parseOnly, codegenOnly, assemblyOnly }.Count(selected => selected) > 1)
   {
+    Console.Error.WriteLine("Error: Options '--lex', '--parse', '--codegen', and '-S' cannot be combined.");
     Console.Error.WriteLine(Usage);
     exitCode = ExitCode.Failure;
     return null;
@@ -141,16 +156,12 @@ static CompilerArguments? CreateCompilerArguments(string[] args, out int exitCod
     return null;
   }
 
-  var preprocessedFile = Path.ChangeExtension(inputFile, ".i");
-  var assemblyFile = Path.ChangeExtension(inputFile, ".s");
-  var outputFile = Path.ChangeExtension(inputFile, null);
+  // GCC reads arguments such as @file.c as options, so give it absolute paths.
+  inputFile = Path.GetFullPath(inputFile);
 
   return new CompilerArguments
   (
     inputFile,
-    preprocessedFile,
-    assemblyFile,
-    outputFile,
     lexOnly,
     parseOnly,
     codegenOnly,
@@ -237,9 +248,6 @@ internal sealed record CommandLine
 internal sealed record CompilerArguments
 (
   string InputFile,
-  string PreprocessedFile,
-  string AssemblyFile,
-  string OutputFile,
   bool LexOnly,
   bool ParseOnly,
   bool CodegenOnly,

@@ -27,7 +27,7 @@ public partial class Lexer
       }
 
       if (!matched)
-        throw new InvalidOperationException($"Unexpected character: '{input[0]}'");
+        throw new CompileError($"Unexpected character: '{input[0]}'");
     }
 
     return tokens;
@@ -39,13 +39,21 @@ public partial class Lexer
     (VoidRegex, _ => new Void()),
     (ReturnRegex, _ => new Return()),
     (IdentifierRegex, text => new Identifier(text)),
-    (ConstantRegex, text => new Constant(int.Parse(text))),
+    (ConstantRegex, text => new Constant(ParseConstant(text))),
     (OpenParenthesisRegex, _ => new OpenParenthesis()),
     (CloseParenthesisRegex, _ => new CloseParenthesis()),
     (OpenBraceRegex, _ => new OpenBrace()),
     (CloseBraceRegex, _ => new CloseBrace()),
     (SemicolonRegex, _ => new Semicolon())
   ];
+
+  private static int ParseConstant(string text)
+  {
+    if (int.TryParse(text, out int value))
+      return value;
+
+    throw new CompileError("integer constant is outside the supported int range.");
+  }
 
   [GeneratedRegex(@"\bint\b")]
   private static partial Regex IntRegex { get; }
