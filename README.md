@@ -71,6 +71,8 @@ The generated program prints nothing and exits with status `2` and `echo $?` dis
 
 ## Further reading
 
+- [Performance testing](docs/performance.md): stage benchmarks, Native AOT command timings, and reports.
+
 - [Compiler architecture](docs/architecture.md): grammar, pipeline, and compiler stages.
 - [C AST](docs/c-ast.md) and [assembly AST](docs/asm-ast.md): current intermediate representations.
 - [Development guide](docs/development.md): setup, debugging, testing, and versioning.
