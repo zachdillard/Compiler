@@ -239,10 +239,13 @@ BUILD_CONFIGURATION=Release ./scripts/book.sh --no-build --chapter 1
 
 ### What the tests cover
 
-The xUnit v2 project includes unit tests for Lexer, Parser, Generator, and
+The xUnit v3 project includes unit tests for Lexer, Parser, Generator, and
 Emitter, an in-memory pipeline test from C source to assembly text, and
 integration tests for the compiler executable. The unit and in-memory pipeline
 tests do not invoke GCC or require Rosetta.
+
+The test project builds as an executable, as required by xUnit v3. It uses
+`xunit.v3.mtp-off` to retain VSTest and the existing `dotnet test` commands.
 
 Integration tests launch the compiler DLL copied into the test output, using
 that build's test runtime configuration and dependency manifest. They do not
