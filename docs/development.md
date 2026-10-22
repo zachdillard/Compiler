@@ -196,6 +196,69 @@ The main compiler configuration uses `data/return_2.c` as its input. To debug
 another source file or compiler mode, edit its `args` in
 [`.vscode/launch.json`](../.vscode/launch.json).
 
+## Coding-agent protection for notes
+
+The human-written `notes/` directory is readable by agents but must only be
+changed manually. The repository supplies different controls for each agent:
+
+- **Codex:** [project configuration](../.codex/config.toml) selects the
+  `compiler` permission profile. It extends `:workspace` and makes `notes/`
+  read-only in every workspace root, including worktrees. Start a new session
+  from this checkout and trust the project so its configuration loads. Keep
+  the configured profile selected: full access, sandbox overrides, or approved
+  unsandboxed commands can bypass it. The profile was validated with Codex CLI
+  **0.162.1** using disposable files; use a client supporting named profiles,
+  profile inheritance, and workspace-relative filesystem entries.
+- **Claude Code:** [project settings](../.claude/settings.json) deny file-tool
+  edits and shell writes under `notes/`. Shell sandboxing is enabled, fails if
+  unavailable, and disallows unsandboxed retries. `CLAUDE.md` imports
+  `AGENTS.md`. Use a current Claude Code release supporting these sandbox
+  settings, accept the project's trust prompt, and check `/permissions` and
+  `/sandbox` in a new session. User or managed settings, excluded commands,
+  and tools running outside the shell sandbox can affect enforcement. Claude
+  Code is not installed on the validation host; live integration remains untested.
+- **GitHub Copilot:** [repository hooks](../.github/hooks/protect-notes.json)
+  invoke `scripts/protect-notes.py` before tool execution. Python **3.8+** must
+  be on `PATH` as `python3` in the agent's environment. Use a current Copilot
+  CLI, Copilot cloud agent, or the **Copilot** session target in current VS Code
+  (hooks are in preview). Trust the workspace and enable repository hooks where
+  required. In VS Code, inspect `/hooks` to confirm this hook is loaded; the
+  older **Local** harness has a different contract and is not covered here.
+  CLI/cloud/VS Code live integration remains untested on this host.
+
+The Copilot script checks structured mutation paths, patch headers, and explicit
+shell operands, including rename sources/destinations and paths resolving
+through symlinks. Read tools and ordinary read commands stay available. It
+returns a denial for protected operations or malformed input, and `{}` for
+other calls so normal permissions still apply. Its `preToolUse` event uses the
+camelCase payload; the script also accepts the compatible snake_case payload.
+The supplied shell-command checks target macOS/Linux command syntax.
+
+Copilot command inspection is a guardrail, not a filesystem sandbox. Programs
+can calculate filenames internally, shell variables can hide destinations, and
+unrecognized tool contracts can escape inspection. Conservative path checks can
+also reject commands that merely reference notes. Disabled hooks do not protect
+files, and Copilot hook timeouts fall through to normal permissions. For a hard
+boundary across arbitrary programs and tools, use an externally enforced
+read-only mount without an unrestricted escape. These repository settings do
+not enforce that boundary or lock user/global configuration.
+
+Validate the hook with disposable fixtures from the repository root:
+
+```sh
+python3 -B -m unittest discover -s scripts/tests -v
+```
+
+The tests never modify the real `notes/` files. They cover protected mutations,
+reads, patches, traversal, symlinks, shell operands, and both payload forms.
+There is no CI restriction on changes to notes; human edits remain unrestricted.
+
+Configuration references: [Codex permissions](https://learn.chatgpt.com/docs/permissions),
+[Claude permissions](https://code.claude.com/docs/en/permissions) and
+[sandboxing](https://code.claude.com/docs/en/sandboxing),
+[Copilot hooks](https://docs.github.com/en/copilot/reference/hooks-reference), and
+[VS Code hooks](https://code.visualstudio.com/docs/agent-customization/hooks).
+
 ## Formatting
 
 The repository's `.editorconfig` defines C# formatting. To format the main

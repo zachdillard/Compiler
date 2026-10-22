@@ -1,0 +1,8 @@
+# Keep human-written notes readable inside an otherwise writable workspace.
+default_permissions = "compiler"
+
+[permissions.compiler]
+extends = ":workspace"
+
+[permissions.compiler.filesystem.":workspace_roots"]
+notes = "read"
