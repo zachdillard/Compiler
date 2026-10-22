@@ -72,7 +72,7 @@ The generated program prints nothing and exits with status `2` and `echo $?` dis
 ## Further reading
 
 - [Compiler architecture](docs/architecture.md): grammar, pipeline, and compiler stages.
-- [C AST](docs/c-ast.md) and [assembly AST](docs/asm-ast.md): current intermediate representations.
+- [C syntax](docs/c-syntax.md) and [assembly syntax](docs/assembly-syntax.md): current intermediate representations.
 - [Development guide](docs/development.md): setup, debugging, testing, and versioning.
 - [Concepts](concepts/README.md): standalone C# examples to explore.
 - [Notes](notes/): working notes for the book chapters.

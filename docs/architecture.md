@@ -41,8 +41,8 @@ Each stage has one job:
 
 1. `Preprocessor` uses GCC to preprocess the C source.
 2. `Lexer` returns the typed tokens defined in `Token.cs`.
-3. `Parser` returns the C AST defined in `Syntax.cs` and described in [c-ast.md](c-ast.md).
-4. `Generator` lowers the C AST to the assembly AST in `Syntax.cs`, described in [asm-ast.md](asm-ast.md).
+3. `Parser` returns the C AST defined in `Syntax.cs` and described in [c-syntax.md](c-syntax.md).
+4. `Generator` lowers the C AST to the assembly AST in `Syntax.cs`, described in [assembly-syntax.md](assembly-syntax.md).
 5. `Emitter` accepts a `Target` (`Mac` or `Linux`) and returns the
    corresponding x86-64 assembly text. Mac symbols have an underscore prefix;
    Linux symbols keep their C names, and Linux output includes a
