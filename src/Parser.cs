@@ -20,22 +20,22 @@ public class Parser
     Expect<Void>(tokens);
     Expect<CloseParenthesis>(tokens);
     Expect<OpenBrace>(tokens);
-    C.Return statement = ParseStatement(tokens);
+    C.Statement statement = ParseStatement(tokens);
     Expect<CloseBrace>(tokens);
 
     return new C.Function(identifier, statement);
   }
 
-  private static C.Return ParseStatement(List<Token> tokens)
+  private static C.Statement ParseStatement(List<Token> tokens)
   {
     Expect<Return>(tokens);
-    C.Constant expression = ParseExpression(tokens);
+    C.Expression expression = ParseExpression(tokens);
     Expect<Semicolon>(tokens);
 
     return new C.Return(expression);
   }
 
-  private static C.Constant ParseExpression(List<Token> tokens)
+  private static C.Expression ParseExpression(List<Token> tokens)
   {
     return new C.Constant(ParseInt(tokens));
   }

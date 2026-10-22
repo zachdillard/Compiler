@@ -15,20 +15,19 @@ public class Generator
     return new Assembly.Function(function.Identifier, instructions);
   }
 
-  private static List<Assembly.Instruction> GenerateInstructions(C.Return statement)
+  private static List<Assembly.Instruction> GenerateInstructions(C.Statement statement) => statement switch
   {
-    Assembly.Imm imm = GenerateImmediate(statement.Expression);
-    Assembly.Register reg = new();
-
-    return
+    C.Return @return =>
     [
-      new Assembly.Mov(imm, reg),
+      new Assembly.Mov(GenerateImmediate(@return.Expression), new Assembly.Register()),
       new Assembly.Ret()
-    ];
-  }
+    ],
+    _ => throw new InvalidOperationException("Unknown C statement.")
+  };
 
-  private static Assembly.Imm GenerateImmediate(C.Constant expression)
+  private static Assembly.Imm GenerateImmediate(C.Expression expression) => expression switch
   {
-    return new Assembly.Imm(expression.Value);
-  }
+    C.Constant constant => new Assembly.Imm(constant.Value),
+    _ => throw new InvalidOperationException("Unknown C expression.")
+  };
 }
