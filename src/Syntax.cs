@@ -1,8 +1,10 @@
 namespace Syntax.C
 {
   public record Program(Function Function);
-  public record Function(string Identifier, Return Statement);
-  public record Return(Constant Expression);
+  public record Function(string Identifier, Statement Statement);
+  public readonly union Statement(Return);
+  public record Return(Expression Expression);
+  public readonly union Expression(Constant);
   public record Constant(int Value);
 }
 
