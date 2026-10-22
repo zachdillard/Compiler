@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(/notes)",
+      "Edit(/notes/**)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "excludedCommands": [],
+    "filesystem": {
+      "denyWrite": [
+        "./notes"
+      ]
+    }
+  }
+}
