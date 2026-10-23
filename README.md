@@ -13,28 +13,15 @@ The goals of this project are to:
 
 ## Capabilities
 
-The compiler completes chapter one: a single `int` function
-with `void` parameters that returns an integer constant.
+So far the compiler completes chapter one:
+
+A single `main` function with `void` parameters that can only return a positive `int`.
 
 ```c
 int main(void) {
     return 2;
 }
 ```
-
-Compiling this program creates an executable that returns `2` to your shell.
-
-## Prerequisites
-
-- macOS 27 (Rosetta 2 is required on Apple Silicon), or Linux x86-64.
-- GCC on `PATH` (Apple's Clang-backed `gcc` works).
-- .NET 11 RC1 SDK **11.0.100-rc.1.26425.128**
-
-The compiler automatically selects macOS or Linux assembly for its host OS.
-Both targets generate x86-64 programs.
-
-See the [development guide](docs/development.md#setup) for installation steps
-and SDK troubleshooting.
 
 ## Quick Start
 
@@ -67,16 +54,9 @@ echo $?
 # 2
 ```
 
-The generated program prints nothing and exits with status `2` and `echo $?` displays the result.
+The generated program prints nothing and exits with exit code `2`.
 
-## Further reading
-
-- [Compiler architecture](docs/architecture.md): grammar, pipeline, and compiler stages.
-- [C syntax](docs/c-syntax.md) and [assembly syntax](docs/assembly-syntax.md): current intermediate representations.
-- [Development guide](docs/development.md): setup, debugging, testing, and versioning.
-- [Concepts](concepts/README.md): standalone C# examples to explore.
-- [Notes](notes/): working notes for the book chapters.
-- [Changelog](CHANGELOG.md): release history and current limitations.
+Use `echo $?` to display the result.
 
 ## License
 
