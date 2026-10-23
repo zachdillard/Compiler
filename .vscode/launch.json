@@ -7,7 +7,7 @@
       "request": "launch",
       "preLaunchTask": "Build Compiler",
       "program": "${workspaceFolder}/src/bin/Debug/net11.0/Compiler.dll",
-      "args": ["${workspaceFolder}/data/return_2.c"],
+      "args": ["${input:sourceFile}"],
       "cwd": "${workspaceFolder}"
     },
     {
@@ -33,6 +33,13 @@
       "preLaunchTask": "Build Compiler Concept",
       "program": "${workspaceFolder}/obj/compiler-debug/compiler.dll",
       "cwd": "${workspaceFolder}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "sourceFile",
+      "type": "promptString",
+      "description": "Path to the C source file to compile"
     }
   ]
 }
