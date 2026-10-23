@@ -1,6 +1,7 @@
 using Helpers;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Xunit;
 
@@ -10,10 +11,30 @@ namespace CompilerIntegrationTests;
 [SupportedOSPlatform("linux")]
 public sealed class DriverTests
 {
-  [Fact]
-  public void VersionDoesNotRequireGcc()
+  public DriverTests()
   {
-    var result = RunCompilerWithoutGcc("--version");
+    Assert.SkipUnless(OperatingSystem.IsMacOS()
+      || (OperatingSystem.IsLinux() && RuntimeInformation.OSArchitecture == Architecture.X64),
+      "Compiler integration tests require macOS or Linux x86-64.");
+  }
+
+  private static readonly string[] StageOptions = ["--lex", "--parse", "--codegen", "-S"];
+  private static readonly string[] CompilationOptions = ["", .. StageOptions];
+
+  public static TheoryData<string, bool> StagePositions =>
+    new MatrixTheoryData<string, bool>(StageOptions, [false, true]);
+
+  public static TheoryData<string, string> OverflowingIntegers =>
+    new MatrixTheoryData<string, string>(["2147483648", "999999999999999999999999"], CompilationOptions);
+
+  public static TheoryData<string, string> TemporaryDirectoryCases =>
+    new MatrixTheoryData<string, string>(CompilationOptions,
+      ["int main(void) { return 7; }", "int main(void) { return 7 }", "int other(void) { return 7; }"]);
+
+  [Fact(Timeout = 30_000)]
+  public async Task VersionDoesNotRequireGcc()
+  {
+    var result = await RunCompilerWithoutGcc(TestContext.Current.CancellationToken, "--version");
     var version = typeof(Lexer).Assembly
       .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
@@ -22,7 +43,7 @@ public sealed class DriverTests
     Assert.Empty(result.StandardError);
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("--version", "-S")]
   [InlineData("--version", "-gcc")]
   [InlineData("--version", "--lex")]
@@ -32,9 +53,9 @@ public sealed class DriverTests
   [InlineData("--version", "--version")]
   [InlineData("--version", "missing.c")]
   [InlineData("missing.c", "--version")]
-  public void VersionRejectsOtherArguments(string first, string second)
+  public async Task VersionRejectsOtherArguments(string first, string second)
   {
-    var result = RunCompilerWithoutGcc(first, second);
+    var result = await RunCompilerWithoutGcc(TestContext.Current.CancellationToken, first, second);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -42,22 +63,22 @@ public sealed class DriverTests
     Assert.Contains("Usage: Compiler", result.StandardError);
   }
 
-  [Fact]
-  public void NoArgumentsPrintUsageAndFail()
+  [Fact(Timeout = 30_000)]
+  public async Task NoArgumentsPrintUsageAndFail()
   {
-    var result = RunCompiler();
+    var result = await RunCompiler(TestContext.Current.CancellationToken);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Contains("Error: Required argument missing", result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("--help")]
   [InlineData("-h")]
-  public void HelpDescribesOptionsWithoutGcc(string option)
+  public async Task HelpDescribesOptionsWithoutGcc(string option)
   {
-    var result = RunCompilerWithoutGcc(option);
+    var result = await RunCompilerWithoutGcc(TestContext.Current.CancellationToken, option);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
@@ -70,7 +91,7 @@ public sealed class DriverTests
     Assert.Contains("--version", result.StandardOutput);
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("-S", "Error: Required argument missing")]
   [InlineData("--lex", "Error: Required argument missing")]
   [InlineData("--parse", "Error: Required argument missing")]
@@ -78,16 +99,16 @@ public sealed class DriverTests
   [InlineData("--assembly", "Error: Expected a source file path, not an option.")]
   [InlineData("-unknown", "Error: Expected a source file path, not an option.")]
   [InlineData("--version=false", "Error: --version option cannot be combined with other arguments.")]
-  public void MalformedArgumentsPrintErrorAndUsageAndFail(string argument, string error)
+  public async Task MalformedArgumentsPrintErrorAndUsageAndFail(string argument, string error)
   {
-    var result = RunCompiler(argument);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, argument);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Contains(error, result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("program.i", "")]
   [InlineData("program.i", "--lex")]
   [InlineData("program.i", "--parse")]
@@ -98,14 +119,14 @@ public sealed class DriverTests
   [InlineData("program", "")]
   [InlineData("program.C", "")]
   [InlineData("program.txt", "")]
-  public void NonCSourceIsRejectedWithoutGccAndPreserved(string fileName, string option)
+  public async Task NonCSourceIsRejectedWithoutGccAndPreserved(string fileName, string option)
   {
     const string source = "int main(void) { return 7; }";
     using var fixture = new TestFixture(source, fileName);
 
     var result = option == string.Empty
-      ? RunCompilerWithoutGcc(fixture.SourcePath)
-      : RunCompilerWithoutGcc(option, fixture.SourcePath);
+      ? await RunCompilerWithoutGcc(TestContext.Current.CancellationToken, fixture.SourcePath)
+      : await RunCompilerWithoutGcc(TestContext.Current.CancellationToken, option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Equal($"Error: source file must have a .c extension.{Environment.NewLine}", result.StandardError);
@@ -113,15 +134,15 @@ public sealed class DriverTests
     Assert.Equal(source, File.ReadAllText(fixture.SourcePath));
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("--lex")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
-  public void IntermediateStageProducesNoOutputAndRemovesPreprocessedFile(string option)
+  public async Task IntermediateStageProducesNoOutputAndRemovesPreprocessedFile(string option)
   {
     using var fixture = new TestFixture("int main(void) {\n\treturn 7;\n}\n");
 
-    var result = RunCompiler(option, fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -131,22 +152,15 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Theory]
-  [InlineData("--lex", false)]
-  [InlineData("--lex", true)]
-  [InlineData("--parse", false)]
-  [InlineData("--parse", true)]
-  [InlineData("--codegen", false)]
-  [InlineData("--codegen", true)]
-  [InlineData("-S", false)]
-  [InlineData("-S", true)]
-  public void StageOptionCanAppearBeforeOrAfterSource(string option, bool sourceFirst)
+  [Theory(Timeout = 30_000)]
+  [MemberData(nameof(StagePositions))]
+  public async Task StageOptionCanAppearBeforeOrAfterSource(string option, bool sourceFirst)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
     var result = sourceFirst
-      ? RunCompiler(fixture.SourcePath, option)
-      : RunCompiler(option, fixture.SourcePath);
+      ? await RunCompiler(TestContext.Current.CancellationToken, fixture.SourcePath, option)
+      : await RunCompiler(TestContext.Current.CancellationToken, option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -156,38 +170,35 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
-  [Fact]
-  public void NormalCompilationProducesExecutableAndRemovesIntermediateFiles()
+  [Fact(Timeout = 30_000)]
+  public async Task NormalCompilationProducesExecutableAndRemovesIntermediateFiles()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompiler(fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.True(File.Exists(fixture.ExecutablePath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
 
-    var executableResult = Process.Start(new ProcessStartInfo
+    var executableResult = await RunProcess(new ProcessStartInfo
     {
       FileName = fixture.ExecutablePath,
       UseShellExecute = false,
       RedirectStandardOutput = true,
       RedirectStandardError = true,
       CreateNoWindow = true
-    });
-
-    Assert.NotNull(executableResult);
-    executableResult.WaitForExit();
+    }, TestContext.Current.CancellationToken);
     Assert.Equal(7, executableResult.ExitCode);
   }
 
-  [Fact]
-  public void AssemblyOnlyCompilationUsesHostTargetAndCleansPreprocessedFile()
+  [Fact(Timeout = 30_000)]
+  public async Task AssemblyOnlyCompilationUsesHostTargetAndCleansPreprocessedFile()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompiler("-S", fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, "-S", fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -196,11 +207,11 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void AssemblyOnlyOutputCanBeLinkedAndExecuted()
+  [Fact(Timeout = 30_000)]
+  public async Task AssemblyOnlyOutputCanBeLinkedAndExecuted()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
-    var result = RunCompiler("-S", fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, "-S", fixture.SourcePath);
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.False(File.Exists(fixture.ExecutablePath));
 
@@ -218,34 +229,29 @@ public sealed class DriverTests
       gccStartInfo.ArgumentList.Insert(1, "x86_64");
     }
 
-    using var gcc = Process.Start(gccStartInfo);
-    Assert.NotNull(gcc);
-    string diagnostics = gcc.StandardError.ReadToEnd();
-    gcc.WaitForExit();
-    Assert.True(gcc.ExitCode == 0, diagnostics);
+    var gcc = await RunProcess(gccStartInfo, TestContext.Current.CancellationToken);
+    Assert.Equal(ExitCode.Success, gcc.ExitCode);
 
-    using var executable = Process.Start(new ProcessStartInfo
+    var executable = await RunProcess(new ProcessStartInfo
     {
       FileName = fixture.ExecutablePath,
       UseShellExecute = false,
       RedirectStandardOutput = true,
       RedirectStandardError = true
-    });
-    Assert.NotNull(executable);
-    executable.WaitForExit();
+    }, TestContext.Current.CancellationToken);
     Assert.Equal(7, executable.ExitCode);
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
   [InlineData("-S")]
-  public void CustomParserRejectsInvalidSyntaxAndCleansPreprocessedFile(string option)
+  public async Task CustomParserRejectsInvalidSyntaxAndCleansPreprocessedFile(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7 }");
 
-    var result = RunCompilerWithOption(option, fixture.SourcePath);
+    var result = await RunCompilerWithOption(TestContext.Current.CancellationToken, option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Contains("Expected Semicolon", result.StandardError);
@@ -254,22 +260,13 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Theory]
-  [InlineData("2147483648", "")]
-  [InlineData("999999999999999999999999", "")]
-  [InlineData("2147483648", "--lex")]
-  [InlineData("999999999999999999999999", "--lex")]
-  [InlineData("2147483648", "--parse")]
-  [InlineData("999999999999999999999999", "--parse")]
-  [InlineData("2147483648", "--codegen")]
-  [InlineData("999999999999999999999999", "--codegen")]
-  [InlineData("2147483648", "-S")]
-  [InlineData("999999999999999999999999", "-S")]
-  public void OverflowingIntegerFailsWithDiagnosticAndCleansIntermediateFiles(string constant, string option)
+  [Theory(Timeout = 30_000)]
+  [MemberData(nameof(OverflowingIntegers))]
+  public async Task OverflowingIntegerFailsWithDiagnosticAndCleansIntermediateFiles(string constant, string option)
   {
     using var fixture = new TestFixture($"int main(void) {{ return {constant}; }}");
 
-    var result = RunCompilerWithOption(option, fixture.SourcePath);
+    var result = await RunCompilerWithOption(TestContext.Current.CancellationToken, option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -280,26 +277,26 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void LexOnlyStopsBeforeParsing()
+  [Fact(Timeout = 30_000)]
+  public async Task LexOnlyStopsBeforeParsing()
   {
     using var fixture = new TestFixture("int main(void) { return 7 }");
 
-    var result = RunCompiler("--lex", fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, "--lex", fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("--lex", "--parse")]
   [InlineData("--lex", "--codegen")]
   [InlineData("--lex", "-S")]
   [InlineData("--parse", "--codegen")]
   [InlineData("--parse", "-S")]
   [InlineData("--codegen", "-S")]
-  public void ConflictingStageFlagsFailBeforePreprocessingInEitherOrder(string first, string second)
+  public async Task ConflictingStageFlagsFailBeforePreprocessingInEitherOrder(string first, string second)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
@@ -309,7 +306,7 @@ public sealed class DriverTests
       new[] { second, fixture.SourcePath, first }
     })
     {
-      var result = RunCompilerWithoutGcc(arguments);
+      var result = await RunCompilerWithoutGcc(TestContext.Current.CancellationToken, arguments);
 
       Assert.Equal(ExitCode.Failure, result.ExitCode);
       Assert.Empty(result.StandardOutput);
@@ -322,16 +319,16 @@ public sealed class DriverTests
     }
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("-S")]
   [InlineData("--lex")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
-  public void DuplicateFlagsPrintErrorAndUsageAndFail(string option)
+  public async Task DuplicateFlagsPrintErrorAndUsageAndFail(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompiler(option, option, fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, option, option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -342,7 +339,7 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("-gcc")]
   [InlineData("--gcc")]
   [InlineData("-s")]
@@ -354,11 +351,11 @@ public sealed class DriverTests
   [InlineData("--codegen=true")]
   [InlineData("--codegen=false")]
   [InlineData("extra.c")]
-  public void InvalidArgumentsWithSourcePrintErrorAndUsageAndProduceNoFiles(string argument)
+  public async Task InvalidArgumentsWithSourcePrintErrorAndUsageAndProduceNoFiles(string argument)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompiler(argument, fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, argument, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -369,18 +366,18 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("")]
   [InlineData("--lex")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
   [InlineData("-S")]
-  public void PreprocessingFailurePropagatesDiagnosticsAndFails(string option)
+  public async Task PreprocessingFailurePropagatesDiagnosticsAndFails(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 0; }");
     File.WriteAllText(fixture.SourcePath, "#include <header-that-does-not-exist.h>\n");
 
-    var result = RunCompilerWithOption(option, fixture.SourcePath);
+    var result = await RunCompilerWithOption(TestContext.Current.CancellationToken, option, fixture.SourcePath);
 
     Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("header-that-does-not-exist.h", result.StandardError);
@@ -389,8 +386,8 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void PreprocessingUsesHostSpecificGccArguments()
+  [Fact(Timeout = 30_000)]
+  public async Task PreprocessingUsesHostSpecificGccArguments()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
     string targetCheck = OperatingSystem.IsMacOS()
@@ -407,7 +404,7 @@ public sealed class DriverTests
         """;
     string gccDirectory = fixture.CreateGcc(targetCheck + "\n/bin/cp \"$3\" \"$5\"");
 
-    var result = RunCompilerWithEnvironment(["-S", fixture.SourcePath], gccDirectory: gccDirectory);
+    var result = await RunCompilerWithEnvironment(TestContext.Current.CancellationToken, ["-S", fixture.SourcePath], gccDirectory: gccDirectory);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
@@ -415,8 +412,8 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
-  [Fact]
-  public void PreprocessingUsesX86_64TargetMacros()
+  [Fact(Timeout = 30_000)]
+  public async Task PreprocessingUsesX86_64TargetMacros()
   {
     using var fixture = new TestFixture("""
       #if defined(__x86_64__) && !defined(__aarch64__)
@@ -426,7 +423,7 @@ public sealed class DriverTests
       #endif
       """);
 
-    var result = RunCompiler("-S", fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, "-S", fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
@@ -434,13 +431,13 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("")]
   [InlineData("--lex")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
   [InlineData("-S")]
-  public void PreprocessingFailureRemovesPartialOutput(string option)
+  public async Task PreprocessingFailureRemovesPartialOutput(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
     string gccDirectory = fixture.CreateGcc("""
@@ -449,7 +446,7 @@ public sealed class DriverTests
       exit 1
       """);
 
-    var result = RunCompilerWithEnvironment(
+    var result = await RunCompilerWithEnvironment(TestContext.Current.CancellationToken,
       option == string.Empty ? [fixture.SourcePath] : [option, fixture.SourcePath],
       gccDirectory: gccDirectory);
 
@@ -461,19 +458,19 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("")]
   [InlineData("--lex")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
   [InlineData("-S")]
-  public void ExistingIntermediateFilesBesideSourceArePreserved(string option)
+  public async Task ExistingIntermediateFilesBesideSourceArePreserved(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
     File.WriteAllText(fixture.PreprocessedPath, "hand-written preprocessed file");
     File.WriteAllText(fixture.AssemblyPath, "hand-written assembly file");
 
-    var result = RunCompilerWithOption(option, fixture.SourcePath);
+    var result = await RunCompilerWithOption(TestContext.Current.CancellationToken, option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardError);
@@ -482,59 +479,52 @@ public sealed class DriverTests
       File.ReadAllText(fixture.AssemblyPath));
   }
 
-  [Theory]
-  [InlineData("", "int main(void) { return 7; }")]
-  [InlineData("--lex", "int main(void) { return 7; }")]
-  [InlineData("--codegen", "int main(void) { return 7; }")]
-  [InlineData("-S", "int main(void) { return 7; }")]
-  [InlineData("", "int main(void) { return 7 }")]
-  [InlineData("", "int other(void) { return 7; }")]
-  public void TemporaryDirectoryIsRemoved(string option, string source)
+  [Theory(Timeout = 30_000)]
+  [MemberData(nameof(TemporaryDirectoryCases))]
+  public async Task TemporaryDirectoryIsRemoved(string option, string source)
   {
     using var fixture = new TestFixture(source);
     string temporaryDirectory = fixture.CreateDirectory("tmp");
 
-    RunCompilerWithEnvironment(
+    await RunCompilerWithEnvironment(TestContext.Current.CancellationToken,
       option == string.Empty ? [fixture.SourcePath] : [option, fixture.SourcePath],
       temporaryDirectory: temporaryDirectory);
 
     Assert.Empty(Directory.GetDirectories(temporaryDirectory, "compiler-*"));
   }
 
-  [Fact]
-  public void SourceNameStartingWithAtSignIsNotReadAsGccOptions()
+  [Fact(Timeout = 30_000)]
+  public async Task SourceNameStartingWithAtSignIsNotReadAsGccOptions()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }", "@program.c");
     // GCC would read program.c as a response file of options for a relative @program.c argument.
     string responseFile = Path.Combine(fixture.DirectoryPath, "program.c");
     File.WriteAllText(responseFile, "--version");
 
-    var result = RunCompilerWithEnvironment(["@program.c"], workingDirectory: fixture.DirectoryPath);
+    var result = await RunCompilerWithEnvironment(TestContext.Current.CancellationToken, ["@program.c"], workingDirectory: fixture.DirectoryPath);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Empty(result.StandardError);
     Assert.Equal("--version", File.ReadAllText(responseFile));
 
-    using var executable = Process.Start(new ProcessStartInfo
+    var executable = await RunProcess(new ProcessStartInfo
     {
       FileName = fixture.ExecutablePath,
       UseShellExecute = false,
       RedirectStandardOutput = true,
       RedirectStandardError = true
-    });
-    Assert.NotNull(executable);
-    executable.WaitForExit();
+    }, TestContext.Current.CancellationToken);
     Assert.Equal(7, executable.ExitCode);
   }
 
-  [Fact]
-  public void AssemblyWriteFailureReturnsDiagnosticAndCleansPreprocessedFile()
+  [Fact(Timeout = 30_000)]
+  public async Task AssemblyWriteFailureReturnsDiagnosticAndCleansPreprocessedFile()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
     Directory.CreateDirectory(fixture.AssemblyPath);
 
-    var result = RunCompiler("-S", fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, "-S", fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Contains("Error: could not access a compiler file:", result.StandardError);
@@ -545,12 +535,12 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void MissingGccFailsWithDiagnostic()
+  [Fact(Timeout = 30_000)]
+  public async Task MissingGccFailsWithDiagnostic()
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
 
-    var result = RunCompilerWithoutGcc(fixture.SourcePath);
+    var result = await RunCompilerWithoutGcc(TestContext.Current.CancellationToken, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Equal($"Error: could not start gcc. Ensure gcc is installed and available on PATH.{Environment.NewLine}",
@@ -561,24 +551,24 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void CompilerFailurePropagatesDiagnosticsAndFails()
+  [Fact(Timeout = 30_000)]
+  public async Task CompilerFailurePropagatesDiagnosticsAndFails()
   {
     using var fixture = new TestFixture("int main( { return 0; }");
 
-    var result = RunCompiler(fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, fixture.SourcePath);
 
     Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("error", result.StandardError, StringComparison.OrdinalIgnoreCase);
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
 
-  [Fact]
-  public void LinkerFailurePrintsDriverErrorAndRemovesIntermediateFiles()
+  [Fact(Timeout = 30_000)]
+  public async Task LinkerFailurePrintsDriverErrorAndRemovesIntermediateFiles()
   {
     using var fixture = new TestFixture("int other(void) { return 7; }");
 
-    var result = RunCompiler(fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, fixture.SourcePath);
 
     Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("Error: could not assemble and link the program.", result.StandardError);
@@ -588,28 +578,28 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Fact]
-  public void MissingSourceFailsWithDiagnostics()
+  [Fact(Timeout = 30_000)]
+  public async Task MissingSourceFailsWithDiagnostics()
   {
     using var fixture = new TestFixture("int main(void) { return 0; }");
     File.Delete(fixture.SourcePath);
 
-    var result = RunCompiler(fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, fixture.SourcePath);
 
     Assert.NotEqual(ExitCode.Success, result.ExitCode);
     Assert.Contains("No such file or directory", result.StandardError, StringComparison.OrdinalIgnoreCase);
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("--lex")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
   [InlineData("-S")]
-  public void StageFlagsRejectLexicalErrorsAndCleanIntermediateFiles(string option)
+  public async Task StageFlagsRejectLexicalErrorsAndCleanIntermediateFiles(string option)
   {
     using var fixture = new TestFixture("int main(void) { return @; }");
 
-    var result = RunCompiler(option, fixture.SourcePath);
+    var result = await RunCompiler(TestContext.Current.CancellationToken, option, fixture.SourcePath);
 
     Assert.Equal(ExitCode.Failure, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -619,12 +609,12 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
-  [Theory]
+  [Theory(Timeout = 30_000)]
   [InlineData("--lex")]
   [InlineData("--parse")]
   [InlineData("--codegen")]
   [InlineData("-S")]
-  public void StageFlagsNeverInvokeAssemblerOrLinker(string option)
+  public async Task StageFlagsNeverInvokeAssemblerOrLinker(string option)
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
     string gccDirectory = fixture.CreateGcc("""
@@ -635,7 +625,7 @@ public sealed class DriverTests
       /bin/cp "$3" "$5"
       """);
 
-    var result = RunCompilerWithEnvironment([option, fixture.SourcePath], gccDirectory: gccDirectory);
+    var result = await RunCompilerWithEnvironment(TestContext.Current.CancellationToken, [option, fixture.SourcePath], gccDirectory: gccDirectory);
 
     Assert.Equal(ExitCode.Success, result.ExitCode);
     Assert.Empty(result.StandardOutput);
@@ -647,27 +637,198 @@ public sealed class DriverTests
       Assert.Equal(ExpectedHostAssembly, File.ReadAllText(fixture.AssemblyPath));
   }
 
+  [Fact(Timeout = 30_000)]
+  public async Task ProcessCapturesLargeStandardErrorWithoutDeadlocking()
+  {
+    const string line = "a line of stderr large enough in aggregate to fill a process pipe\n";
+    var result = await RunProcess(Shell("""
+      i=0
+      while [ "$i" -lt 4096 ]; do
+        printf 'a line of stderr large enough in aggregate to fill a process pipe\n' >&2
+        i=$((i + 1))
+      done
+      printf 'finished\n'
+      exit 7
+      """), TestContext.Current.CancellationToken);
+
+    Assert.Equal(7, result.ExitCode);
+    Assert.Equal("finished\n", result.StandardOutput);
+    Assert.Equal(string.Concat(Enumerable.Repeat(line, 4096)), result.StandardError);
+  }
+
+  [Fact(Timeout = 30_000)]
+  public async Task AlreadyCanceledProcessDoesNotStart()
+  {
+    using var fixture = new TestFixture("unused");
+    // A start attempt would throw for this missing executable, exposing a missing cancellation guard.
+    var startInfo = new ProcessStartInfo(Path.Combine(fixture.DirectoryPath, "missing-executable"))
+    {
+      UseShellExecute = false,
+      RedirectStandardOutput = true,
+      RedirectStandardError = true
+    };
+    using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+    cancellation.Cancel();
+
+    await Assert.ThrowsAnyAsync<OperationCanceledException>(() => RunProcess(startInfo, cancellation.Token));
+  }
+
+  [Theory(Timeout = 30_000)]
+  [InlineData(false)]
+  [InlineData(true)]
+  public async Task CompilerCancellationStopsGccAndItsChild(bool useDeadline)
+  {
+    using var fixture = new TestFixture("int main(void) { return 7; }");
+    string ready = fixture.SourcePath + ".ready";
+    string gccDirectory = fixture.CreateGcc("""
+      /bin/sleep 300 &
+      child=$!
+      ready="$3.ready"
+      printf '%s %s\n' "$$" "$child" > "$ready.tmp"
+      /bin/mv "$ready.tmp" "$ready"
+      wait "$child"
+      """);
+    using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+    var run = RunCompilerWithEnvironment(cancellation.Token, [fixture.SourcePath], gccDirectory: gccDirectory);
+
+    Process? parent = null;
+    Process? child = null;
+    try
+    {
+      // Wait for the child to exist before exercising cancellation, rather than guessing a startup delay.
+      while (!File.Exists(ready))
+      {
+        if (run.IsCompleted)
+          Assert.Fail($"Process exited before publishing its child PID: {await run}");
+        await Task.Delay(10, TestContext.Current.CancellationToken);
+      }
+
+      string[] ids = (await File.ReadAllTextAsync(ready, TestContext.Current.CancellationToken))
+        .Trim().Split(' ');
+      parent = Process.GetProcessById(int.Parse(ids[0]));
+      child = Process.GetProcessById(int.Parse(ids[1]));
+      Assert.False(parent.HasExited);
+      Assert.False(child.HasExited);
+
+      if (useDeadline)
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(50));
+      else
+        cancellation.Cancel();
+
+      await Assert.ThrowsAnyAsync<OperationCanceledException>(() => run);
+      await parent.WaitForExitAsync(TestContext.Current.CancellationToken);
+      await child.WaitForExitAsync(TestContext.Current.CancellationToken);
+      Assert.True(parent.HasExited);
+      Assert.True(child.HasExited);
+    }
+    finally
+    {
+      cancellation.Cancel();
+      try
+      {
+        await run.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+      }
+      catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+      {
+      }
+      finally
+      {
+        // Also clean up if an assertion fails while testing a broken cancellation implementation.
+        foreach (var process in new[] { child, parent })
+        {
+          if (process is null)
+            continue;
+          using (process)
+          {
+            if (!process.HasExited)
+              process.Kill(entireProcessTree: true);
+          }
+        }
+      }
+    }
+  }
+
+  private static ProcessStartInfo Shell(string script) => new("/bin/sh")
+  {
+    ArgumentList = { "-c", script },
+    UseShellExecute = false,
+    RedirectStandardOutput = true,
+    RedirectStandardError = true
+  };
+
+  private static async Task<ProcessResult> RunProcess(ProcessStartInfo startInfo, CancellationToken cancellationToken)
+  {
+    cancellationToken.ThrowIfCancellationRequested();
+    using var process = Process.Start(startInfo);
+    Assert.NotNull(process);
+
+    // Drain both pipes concurrently. Keep draining after cancellation while the process tree is killed.
+    var standardOutput = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+    var standardError = process.StandardError.ReadToEndAsync(CancellationToken.None);
+    try
+    {
+      await process.WaitForExitAsync(cancellationToken);
+      await Task.WhenAll(standardOutput, standardError).WaitAsync(cancellationToken);
+      return new ProcessResult(process.ExitCode, await standardOutput, await standardError);
+    }
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+    {
+      try
+      {
+        process.Kill(entireProcessTree: true);
+      }
+      catch (InvalidOperationException) when (process.HasExited)
+      {
+        // It may have exited between the cancellation signal and Kill.
+      }
+
+      await process.WaitForExitAsync(CancellationToken.None)
+        .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+      await Task.WhenAll(standardOutput, standardError)
+        .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+      throw;
+    }
+    finally
+    {
+      Console.WriteLine($"Command: {startInfo.FileName} {string.Join(' ', startInfo.ArgumentList)}");
+      Console.WriteLine($"Exit: {(process.HasExited ? process.ExitCode : "running")}; canceled: {cancellationToken.IsCancellationRequested}");
+      WriteProcessOutput("stdout", standardOutput);
+      WriteProcessOutput("stderr", standardError);
+    }
+  }
+
+  private static void WriteProcessOutput(string stream, Task<string> output)
+  {
+    const int limit = 4096;
+    if (!output.IsCompletedSuccessfully)
+      Console.WriteLine($"{stream}: unavailable");
+    else if (output.Result.Length > limit)
+      Console.WriteLine($"{stream}: {output.Result[..limit]} [truncated]");
+    else
+      Console.WriteLine($"{stream}: {output.Result}");
+  }
+
   private static string ExpectedHostAssembly => (OperatingSystem.IsMacOS()
     ? "\t.globl _main\n_main:\n\tmovl $7, %eax\n\tret\n"
     : "\t.globl main\nmain:\n\tmovl $7, %eax\n\tret\n\t.section .note.GNU-stack,\"\",@progbits\n")
     .Replace("\n", Environment.NewLine);
 
-  private static ProcessResult RunCompilerWithOption(string option, string sourcePath)
+  private static Task<ProcessResult> RunCompilerWithOption(CancellationToken cancellationToken, string option, string sourcePath)
   {
-    return option == string.Empty ? RunCompiler(sourcePath) : RunCompiler(option, sourcePath);
+    return option == string.Empty ? RunCompiler(cancellationToken, sourcePath) : RunCompiler(cancellationToken, option, sourcePath);
   }
 
-  private static ProcessResult RunCompiler(params string[] arguments)
+  private static Task<ProcessResult> RunCompiler(CancellationToken cancellationToken, params string[] arguments)
   {
-    return RunCompilerWithEnvironment(arguments, withoutGcc: false);
+    return RunCompilerWithEnvironment(cancellationToken, arguments, withoutGcc: false);
   }
 
-  private static ProcessResult RunCompilerWithoutGcc(params string[] arguments)
+  private static Task<ProcessResult> RunCompilerWithoutGcc(CancellationToken cancellationToken, params string[] arguments)
   {
-    return RunCompilerWithEnvironment(arguments, withoutGcc: true);
+    return RunCompilerWithEnvironment(cancellationToken, arguments, withoutGcc: true);
   }
 
-  private static ProcessResult RunCompilerWithEnvironment(string[] arguments, bool withoutGcc = false,
+  private static async Task<ProcessResult> RunCompilerWithEnvironment(CancellationToken cancellationToken, string[] arguments, bool withoutGcc = false,
     string? gccDirectory = null, string? temporaryDirectory = null, string? workingDirectory = null)
   {
     var compilerAssembly = typeof(Lexer).Assembly.Location;
@@ -702,20 +863,23 @@ public sealed class DriverTests
     else if (gccDirectory is not null)
       startInfo.Environment["PATH"] = gccDirectory;
 
-    if (temporaryDirectory is not null)
-      startInfo.Environment["TMPDIR"] = temporaryDirectory;
-
     if (workingDirectory is not null)
       startInfo.WorkingDirectory = workingDirectory;
 
-    using var process = Process.Start(startInfo);
-    Assert.NotNull(process);
-
-    var standardOutput = process.StandardOutput.ReadToEnd();
-    var standardError = process.StandardError.ReadToEnd();
-    process.WaitForExit();
-
-    return new ProcessResult(process.ExitCode, standardOutput, standardError);
+    // Own the compiler's scratch directory so forcibly canceling it cannot leave temporary files behind.
+    string? ownedTemporaryDirectory = temporaryDirectory is null
+      ? Directory.CreateTempSubdirectory("compiler-process-test-").FullName
+      : null;
+    startInfo.Environment["TMPDIR"] = temporaryDirectory ?? ownedTemporaryDirectory;
+    try
+    {
+      return await RunProcess(startInfo, cancellationToken);
+    }
+    finally
+    {
+      if (ownedTemporaryDirectory is not null)
+        Directory.Delete(ownedTemporaryDirectory, recursive: true);
+    }
   }
 
   private sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);

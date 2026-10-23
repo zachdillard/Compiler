@@ -239,10 +239,31 @@ BUILD_CONFIGURATION=Release ./scripts/book.sh --no-build --chapter 1
 
 ### What the tests cover
 
-The xUnit v2 project includes unit tests for Lexer, Parser, Generator, and
+The xUnit v3 project includes unit tests for Lexer, Parser, Generator, and
 Emitter, an in-memory pipeline test from C source to assembly text, and
 integration tests for the compiler executable. The unit and in-memory pipeline
 tests do not invoke GCC or require Rosetta.
+
+The test project builds as an executable, as required by xUnit v3. It uses
+`xunit.v3.mtp-off` to retain VSTest and the existing `dotnet test` commands.
+
+Stage-position, integer-overflow, and temporary-directory cases use xUnit v3
+matrix theory data. Cleanup cases combine every compilation stage with valid,
+invalid-syntax, and missing-entry-point sources.
+
+Integration tests have a 30-second timeout and pass xUnit's cancellation token
+to an asynchronous process helper. The helper reads stdout and stderr
+concurrently, kills the process tree on cancellation, and allows up to five
+seconds each for process exit and output draining. Compiler scratch directories
+are owned by the helper so cancellation can also clean up temporary files.
+Regression tests exercise large stderr output, nonzero exits, cancellation
+before startup, and cancellation of a compiler blocked in GCC, including its
+child process.
+
+Console capture associates command, exit status, cancellation status, and up to
+4096 characters from each output stream with the current test. Complete output
+is still returned to assertions. Unsupported hosts skip integration tests at
+runtime; GCC remains required on supported macOS and Linux x86-64 hosts.
 
 Integration tests launch the compiler DLL copied into the test output, using
 that build's test runtime configuration and dependency manifest. They do not
