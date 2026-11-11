@@ -13,7 +13,7 @@ The goals of this project are to:
 
 ## .NET 11 Highlights
 
-- **C# 15 unions.** The compiler uses unions for [tokens](src/Token.cs), instructions, and operands. See [assembly syntax](src/Syntax.cs) for more examples.
+- **C# 15 unions.** The compiler uses unions for [tokens](src/Token.cs), instructions, and operands. See [assembly syntax](src/Syntax.cs).
 - **File-based apps.** The concept examples run as standalone C# files.
 
 ## Scope
@@ -42,6 +42,15 @@ int main(void) {
 ```
 
 ## Quick Start
+
+### Supported platforms
+
+The compiler runs on macOS and x86-64 Linux. It selects the output target based on the host operating system.
+
+| Host | Target | Running generated programs |
+| --- | --- | --- |
+| macOS (Intel or Apple Silicon) | macOS x86-64 | Apple Silicon requires Rosetta 2. |
+| Linux (x86-64) | Linux x86-64 | Runs natively on x86-64 Linux. |
 
 ### Build the compiler
 
