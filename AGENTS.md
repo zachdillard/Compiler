@@ -1,10 +1,9 @@
 # Repository Instructions
 
 - This is a learning, non-production project.
+- Keep commit messages simple unless additional detail is required.
 - The project is a C#/.NET 11 implementation of the C compiler described in *Writing a C Compiler* by Nora Sandler. Keep compiler stages clear, testable, and easy to extend.
 - The stable .NET 11 SDK specified in `global.json` and GCC on `PATH` are required. The custom compiler targets macOS x86-64; executing its output on Apple Silicon requires Rosetta 2.
-- Keep changes simple, clear, and easy to understand.
-- Keep commit messages simple unless additional detail is required.
 - Never edit the human-written notes in `notes/`.
 - From the repository root, use `dotnet build -m:1 --disable-build-servers` to build. These flags avoid MSBuild worker socket failures in Codex's sandbox.
 - From the repository root, use `dotnet test` to run integration tests. Tests require GCC on `PATH`.
