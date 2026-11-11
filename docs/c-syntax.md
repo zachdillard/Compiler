@@ -1,6 +1,6 @@
 ```asdl
-program = Program(function_definition)
-function_definition = Function(identifier name, statement body)
-statement = Return(exp)
-exp = Constant(int)
+program = Program(function Function)
+function = Function(string Identifier, return Statement)
+return = Return(constant Expression)
+constant = Constant(int Value)
 ```

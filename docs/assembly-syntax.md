@@ -1,6 +1,6 @@
 ```asdl
-program = Program(function_definition)
-function_definition = Function(identifier name, instruction* instructions)
-instruction = Mov(operand src, operand dst) | Ret
-operand = Imm(int) | Register
+program = Program(function Function)
+function = Function(string Identifier, instruction* Instructions)
+instruction = Mov(operand Source, operand Destination) | Ret
+operand = Imm(int Value) | Register
 ```
