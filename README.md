@@ -11,6 +11,13 @@ The goals of this project are to:
 - Learn more about CI/CD through hands-on practice.
 - Experiment with different development methodologies and agentic engineering.
 
+## .NET 11 Highlights
+
+Targeting `net11.0` enables C# 15 by default.
+
+- **C# 15 unions.** The compiler uses unions for [tokens](src/Token.cs), instructions, and operands. See [assembly syntax](src/Syntax.cs).
+- **File-based apps.** The concept examples run as standalone C# files.
+
 ## Scope
 
 The compiler implements four stages:
@@ -70,6 +77,16 @@ echo $?
 The generated program returns immediately and exits with status code `2`.
 
 Use `echo $?` to display the result.
+
+### Run a concept
+
+From the repository root, run the standalone compiler concept with the .NET 11 SDK.
+
+```sh
+dotnet concepts/compiler.cs
+```
+
+The example prints a sample C function and the assembly it generates. See the [other concept examples](concepts/README.md).
 
 ## License
 
