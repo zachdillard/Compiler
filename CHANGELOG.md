@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Source builds now use the stable .NET 11 SDK and C# 15.
+
 ### Fixed
 
 - Intermediate `.i` and `.s` files are written to a private temporary directory,

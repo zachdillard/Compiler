@@ -5,16 +5,15 @@ from the repository root unless noted otherwise.
 
 ## Setup
 
-- .NET 11 RC1 SDK **11.0.100-rc.1.26425.128**, as specified in [global.json](../global.json)
+- Stable .NET 11 SDK **11.0.100** or a later patch in the `11.0.1xx` feature band, as specified in [global.json](../global.json)
 - GCC available on `PATH` (Apple's Clang-backed `gcc` is suitable)
 - For the custom compiler: macOS with x86-64 assembly/linking support, or
   Linux x86-64. The host OS selects the compilation target. Running its
   executables on Apple Silicon requires Rosetta 2.
 
-Install the SDK from the [official .NET 11 download page](https://dotnet.microsoft.com/en-us/download/dotnet/11.0),
-selecting the RC1 SDK version above: Arm64 for Apple Silicon or x64 for Intel
-Macs. The repository uses preview C# features and limited SDK roll-forward;
-installing only a newer SDK may not satisfy `global.json`.
+If you use `dotnetup`, install the SDK with `dotnetup sdk install 11.0.1xx`.
+You can also get it from the [official .NET 11 download page](https://dotnet.microsoft.com/en-us/download/dotnet/11.0).
+Choose Arm64 for Apple Silicon or x64 for Intel Macs.
 
 Install Apple's Command Line Tools if you do not already have them:
 
@@ -49,8 +48,8 @@ xcode-select -p
 
 Running `dotnet --version` inside the checkout checks SDK selection against
 `global.json`. If `dotnet` is missing or reports that no compatible SDK is
-installed, install the pinned RC1 SDK linked above, open a new terminal, and
-return to the checkout before trying again. If the error persists, use
+installed, install a compatible stable SDK as described above. Open a new
+terminal and return to the checkout before trying again. If the error persists, use
 `dotnet --list-sdks` to check that the required SDK is installed.
 
 The first project build or test run needs access to NuGet to restore test

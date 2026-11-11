@@ -6,8 +6,7 @@ and can be run without building the compiler solution.
 
 ## Requirements
 
-- .NET 11 RC1 SDK, as specified by the repository's `global.json`
-- Preview C# language support for `compiler.cs`
+- Stable .NET 11 SDK, as specified by the repository's `global.json`
 
 Run each script from this folder:
 

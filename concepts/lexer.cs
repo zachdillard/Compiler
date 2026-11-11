@@ -1,5 +1,4 @@
 #!/usr/bin/env -S dotnet --
-#:property LangVersion=preview
 
 using System.Text.RegularExpressions;
 
