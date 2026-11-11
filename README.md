@@ -13,9 +13,7 @@ The goals of this project are to:
 
 ## .NET 11 Highlights
 
-Targeting `net11.0` enables C# 15 by default.
-
-- **C# 15 unions.** The compiler uses unions for [tokens](src/Token.cs), instructions, and operands. See [assembly syntax](src/Syntax.cs).
+- **C# 15 unions.** The compiler uses unions for [tokens](src/Token.cs), instructions, and operands. See [assembly syntax](src/Syntax.cs) for more examples.
 - **File-based apps.** The concept examples run as standalone C# files.
 
 ## Scope
@@ -28,6 +26,8 @@ The compiler implements four stages:
 - [Assembly emission](src/Emitter.cs)
 
 It uses `gcc` to preprocess C source files, assemble the object file, and to produce the executable.
+
+Performance is not a goal of the project.
 
 ## Capabilities
 
@@ -80,13 +80,13 @@ Use `echo $?` to display the result.
 
 ### Run a concept
 
-From the repository root, run the standalone compiler concept with the .NET 11 SDK.
+Run the standalone compiler concept with the `dotnet` command line:
 
 ```sh
 dotnet concepts/compiler.cs
 ```
 
-The example prints a sample C function and the assembly it generates. See the [other concept examples](concepts/README.md).
+The example prints a C function and the generated assembly. See [concepts](concepts/README.md) for more examples.
 
 ## License
 
