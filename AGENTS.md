@@ -5,7 +5,7 @@
 - This is a learning, non-production project.
 - Keep commit messages simple unless additional detail is required.
 - The project is a C#/.NET 11 implementation of the C compiler described in *Writing a C Compiler* by Nora Sandler. Keep compiler stages clear, testable, and easy to extend.
-- Never edit the human-written notes in `notes/`.
+- Never edit the author's local chapter notes.
 
 ## Build and test
 
