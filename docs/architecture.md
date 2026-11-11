@@ -1,82 +1,78 @@
-# Compiler architecture
+# Compiler Architecture
 
-The implementation follows the book's progression from parsing C source through semantic analysis and code generation, with the goal of making each compiler stage clear, testable, and easy to extend.
+## Scope
 
-## Current scope
-
-The custom compiler completes chapter one: a single `int` function with
-`void` parameters and one statement returning an integer constant, such as:
+The compiler completes chapter one of *Writing a C Compiler*. It accepts a single `int` function with `void` parameters that returns an integer constant.
 
 ```c
-int main(void)
-{
+int main(void) {
     return 2;
 }
 ```
 
-The custom compiler rejects syntax outside this grammar, missing tokens, and
-trailing tokens. Later chapters' language features are not implemented yet.
+The parser rejects missing or trailing tokens and syntax outside the [C grammar](c-grammar.md).
 
 ## Pipeline
 
-The compiler pipeline is:
+The compiler implements four stages. It uses `gcc` to preprocess the C source and to assemble and link the generated assembly.
 
 ```mermaid
 flowchart TD
     source["C source (.c)"] --> preprocessor["Preprocessor (GCC)"]
     preprocessor -->|"Preprocessed C (.i)"| lexer
 
-    subgraph custom["Custom compiler (C#)"]
+    subgraph custom["Compiler stages (C#)"]
         lexer["Lexer"] -->|"Typed tokens"| parser["Parser"]
         parser -->|"C AST"| generator["Generator"]
         generator -->|"Assembly AST"| emitter["Emitter"]
-        emitter -->|"Target-specific x86-64 assembly text"| writer["Writer"]
     end
 
+    emitter -->|"Target-specific x86-64 assembly text"| writer["Writer"]
     writer -->|"Assembly file (.s)"| assembler["Assembler (GCC)<br/>Assemble and link"]
     assembler --> executable["Executable"]
 ```
 
-Each stage has one job:
+1. **Lexing.** Reads preprocessed C and produces [typed tokens](../src/Token.cs). [Lexer](../src/Lexer.cs)
+2. **Parsing.** Builds the [C AST](c-syntax.md) from the tokens. [Parser](../src/Parser.cs)
+3. **Code generation.** Lowers the C AST to the [assembly AST](assembly-syntax.md). [Generator](../src/Generator.cs)
+4. **Assembly emission.** Turns the assembly AST into x86-64 assembly text for the selected target. [Emitter](../src/Emitter.cs)
 
-1. `Preprocessor` uses GCC to preprocess the C source.
-2. `Lexer` returns the typed tokens defined in `Token.cs`.
-3. `Parser` returns the C AST defined in `Syntax.cs` and described in [c-syntax.md](c-syntax.md).
-4. `Generator` lowers the C AST to the assembly AST in `Syntax.cs`, described in [assembly-syntax.md](assembly-syntax.md).
-5. `Emitter` accepts a `Target` (`Mac` or `Linux`) and returns the
-   corresponding x86-64 assembly text. Mac symbols have an underscore prefix;
-   Linux symbols keep their C names, and Linux output includes a
-   `.note.GNU-stack` section to mark the stack as non-executable.
-6. `Writer` saves the assembly to a `.s` file.
-7. `Assembler` uses GCC to assemble and link the executable.
+## Driver
 
-`Lexer` and `Parser` report problems in the C source with `Helpers.Error`,
-which `Driver` prints as `Error: <message>`.
+[Driver.cs](../src/Driver.cs) defines the command-line options and runs the pipeline.
 
-`Driver` selects `Target.Mac` when running on macOS and
-`Target.Linux` when running on Linux. Other operating systems, and
-Linux hosts that are not x86-64, are rejected before GCC is invoked. Both
-targets generate x86-64 code. The shared `GCC` helper adds `-arch x86_64` on
-macOS; Linux uses the native x86-64 GCC toolchain. `Driver` passes GCC absolute
-paths so a source named like `@file.c` is not read as a GCC response file.
+- **Paths.** Passes absolute paths to GCC so a source filename like `@file.c` is treated as a path.
+- **Diagnostics.** Catches `Helpers.Error` from the lexer or parser and prints `Error: <message>`.
+- **Temporary files.** Keeps the `.i` file and the `.s` file from a full compilation in a private temporary directory. Removes the directory when compilation finishes.
 
-The mutually exclusive stage flags stop after lexing (`--lex`), parsing
-(`--parse`), assembly AST generation (`--codegen`), or writing assembly (`-S`).
-The first three produce no output files; `-S` leaves a `.s` file beside the
-source without assembling or linking. The preprocessed `.i` file, and the `.s`
-file without `-S`, are written to a private temporary directory that is removed
-when compilation finishes, so existing files beside the source are untouched.
-The executable is written beside the source.
+### Stage flags
 
-## C# namespaces
+Use one stage flag per run. The compiler writes any final output beside the source file.
 
-`Lexer`, `Parser`, `Generator`, `Emitter`, and token types use the global namespace.
-The C AST and assembly AST live in `src/Syntax.cs` and use `Syntax.C` and `Syntax.Assembly`.
-The GCC stages (`Preprocessor` and `Assembler`), their shared `GCC` process
-helper, `Writer`, `Error`, `ExitCode`, and `Target` live in `src/Helpers/`
-and use `Helpers`. Tests use `CompilerIntegrationTests`.
-`Driver.cs` constructs command-line options in a static method and orchestrates
-the compiler pipeline, including temporary-directory cleanup and compiler diagnostics.
+| Flag | Stops after | Output file |
+| --- | --- | --- |
+| `--lex` | Lexing | None |
+| `--parse` | Parsing | None |
+| `--codegen` | Code generation | None |
+| `-S` | Writing assembly | `.s` file |
+| None | Assembling and linking | Executable |
 
-See the [README usage instructions](../README.md#usage) for compiler options
-and examples.
+## Targets
+
+The driver selects the x86-64 target based on the host operating system. It checks for a supported host before invoking GCC.
+
+| Host | Target | Assembly | GCC |
+| --- | --- | --- | --- |
+| macOS (Intel or Apple Silicon) | `Target.Mac` | Leading underscore on symbols | Adds `-arch x86_64` |
+| Linux (x86-64) | `Target.Linux` | Uses C symbol names and adds `.note.GNU-stack` to mark the stack as non-executable | Uses the native toolchain |
+
+See [Quick Start](../README.md#quick-start) for build and run examples.
+
+## C# Namespaces
+
+| Namespace | Types |
+| --- | --- |
+| Global | `Lexer`, `Parser`, `Generator`, `Emitter`, and token types |
+| `Syntax.C`, `Syntax.Assembly` | C and assembly AST types in [Syntax.cs](../src/Syntax.cs) |
+| `Helpers` | `Preprocessor`, `Assembler`, `GCC`, `Writer`, `Error`, `ExitCode`, and `Target` in [src/Helpers](../src/Helpers) |
+| `CompilerIntegrationTests` | Test classes in [tests](../tests) |
