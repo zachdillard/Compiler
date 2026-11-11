@@ -7,7 +7,7 @@
       "request": "launch",
       "preLaunchTask": "Build Compiler",
       "program": "${workspaceFolder}/src/bin/Debug/net11.0/Compiler.dll",
-      "args": ["${workspaceFolder}/data/return_2.c"],
+      "args": ["${workspaceFolder}/data/return_int.c"],
       "cwd": "${workspaceFolder}"
     },
     {

@@ -175,8 +175,8 @@ gh attestation verify compiler-<version>-<runtime>.tar.gz --repo zachdillard/Com
 Compile a C source file or generate assembly only:
 
 ```sh
-./scripts/run.sh data/return_2.c
-./scripts/run.sh -S data/return_2.c
+./scripts/run.sh data/return_int.c
+./scripts/run.sh -S data/return_int.c
 ```
 
 Pass compiler options directly to `run.sh`; no extra `--` is needed.
@@ -191,7 +191,7 @@ There is a debug configuration for the main compiler and each example in
 `concepts/`. Choose a configuration in the Run and Debug view, set breakpoints,
 and press F5. Each configuration runs its matching build task before launching.
 
-The main compiler configuration uses `data/return_2.c` as its input. To debug
+The main compiler configuration uses `data/return_int.c` as its input. To debug
 another source file or compiler mode, edit its `args` in
 [`.vscode/launch.json`](../.vscode/launch.json).
 

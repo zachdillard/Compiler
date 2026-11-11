@@ -11,11 +11,22 @@ The goals of this project are to:
 - Learn more about CI/CD through hands-on practice.
 - Experiment with different development methodologies and agentic engineering.
 
+## Scope
+
+The compiler implements four stages:
+
+- [Lexing](src/Lexer.cs)
+- [Parsing](src/Parser.cs)
+- [Code generation](src/Generator.cs)
+- [Assembly emission](src/Emitter.cs)
+
+It uses `gcc` to preprocess C source files, assemble the object file, and to produce the executable.
+
 ## Capabilities
 
 So far the compiler completes chapter one:
 
-A single `main` function with `void` parameters that can only return a positive `int`.
+A single `main` function with `void` parameters that returns a positive `int`.
 
 ```c
 int main(void) {
@@ -37,24 +48,26 @@ dotnet build
 
 ### Run the compiler
 
-Add the build output to `PATH` for the current terminal, then compile a C file:
+The compiler requires `gcc` on `PATH`.
+
+Add the build output to `PATH` for the current terminal and then compile a C file:
 
 ```sh
 export PATH="$PWD/src/bin/Debug/net11.0:$PATH"
-Compiler data/return_2.c
+Compiler data/return_int.c
 ```
 
-The compiler creates `data/return_2` beside the source file.
+The compiler creates `data/return_int` beside the source file.
 
 ### Run the generated program
 
 ```sh
-./data/return_2
+./data/return_int
 echo $?
 # 2
 ```
 
-The generated program prints nothing and exits with exit code `2`.
+The generated program returns immediately and exits with status code `2`.
 
 Use `echo $?` to display the result.
 
