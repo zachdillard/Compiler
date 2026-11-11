@@ -8,6 +8,8 @@ format with [chapter-based versioning](docs/development.md#versioning).
 
 ## [0.1.0] - 2026-11-11
 
+First stable release.
+
 ### Added
 
 - Chapter 1 compiler for a single `int` function with `void` parameters and one `return` statement containing a positive integer literal.
