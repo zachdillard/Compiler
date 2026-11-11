@@ -4,7 +4,7 @@ obj/
 out/
 *.i
 *.s
-/data/return_int
+/examples/return_int
 
 # Test and coverage output
 TestResults/

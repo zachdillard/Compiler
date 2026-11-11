@@ -64,4 +64,4 @@ The stage flags `--lex`, `--parse`, `--codegen`, and `-S` are mutually exclusive
 
 - The `concepts/` folder contains self-contained, file-based C# examples. From that folder, run an example individually with `dotnet <concept-name>.cs`.
 - When adding a new concept, add a matching build task in `.vscode/tasks.json` and debug configuration in `.vscode/launch.json`, using the labels `Build <Name> Concept` and `Debug <Name> Concept`.
-- When adding a new C source file under `data/`, add its generated output file to `.gitignore`.
+- When adding a new C source file under `examples/`, add its generated output file to `.gitignore`.

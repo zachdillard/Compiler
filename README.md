@@ -54,15 +54,15 @@ Add the build output to `PATH` for the current terminal and then compile a C fil
 
 ```sh
 export PATH="$PWD/src/bin/Debug/net11.0:$PATH"
-Compiler data/return_int.c
+Compiler examples/return_int.c
 ```
 
-The compiler creates `data/return_int` beside the source file.
+The compiler creates `examples/return_int` beside the source file.
 
 ### Run the generated program
 
 ```sh
-./data/return_int
+./examples/return_int
 echo $?
 # 2
 ```
