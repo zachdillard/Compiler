@@ -74,7 +74,8 @@ Run the publish script on the platform you want to package.
 | Linux x86-64 | `linux-x64` | Clang and zlib development headers (`clang` and `zlib1g-dev` on Ubuntu) |
 
 - The Native AOT executable is written to `artifacts/publish/<runtime>/Release/Compiler`. It runs without .NET and uses `gcc` to compile C programs.
-- The archive is written to `artifacts/release/compiler-<version>-<runtime>.tar.gz`. It contains `Compiler`, `README.md`, and `LICENSE`.
+- The archive is written to `artifacts/release/compiler-<version>-<runtime>.tar.gz`. It contains `Compiler`, `README.md`, `LICENSE`, and `NOTICE`.
+- `NOTICE` lists the bundled components and their copyright notices. The publish script appends the third-party notices from the .NET Native AOT runtime pack used for that build. `LICENSE` contains the shared MIT terms.
 
 ## Create a GitHub Release
 

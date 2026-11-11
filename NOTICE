@@ -1,0 +1,5 @@
+The .NET Native AOT runtime and System.CommandLine use the MIT terms in LICENSE.
+
+Copyright (c) .NET Foundation and Contributors (both components).
+Copyright © Microsoft Corporation (command-line NuGet package).
+All rights reserved.

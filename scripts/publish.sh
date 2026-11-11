@@ -29,17 +29,27 @@ package_dir="artifacts/release/$package_name"
 # Exclude debug symbols so the publish folder contains a single executable.
 #
 # Use one MSBuild worker and disable build servers to avoid sandbox socket errors.
-dotnet publish src/Compiler.csproj \
-  --configuration Release \
-  --runtime "$runtime" \
-  --output "$publish_dir" \
-  -p:CopyOutputSymbolsToPublishDirectory=false \
-  -m:1 \
-  --disable-build-servers
+# Read the runtime pack path from the same build that links the executable.
+runtime_pack_path=$(
+  dotnet publish src/Compiler.csproj \
+    --configuration Release \
+    --runtime "$runtime" \
+    --output "$publish_dir" \
+    -p:CopyOutputSymbolsToPublishDirectory=false \
+    -getProperty:_NETCoreAppRuntimePackPath \
+    -m:1 \
+    --disable-build-servers
+)
+runtime_notices="${runtime_pack_path:?Native AOT runtime pack path was not reported}/../../THIRD-PARTY-NOTICES.TXT"
 
 # Package the executable and documentation inside one versioned folder.
 mkdir -p "$package_dir"
 cp "$publish_dir/Compiler" README.md LICENSE "$package_dir/"
+{
+  cat NOTICE
+  printf '\n'
+  cat "$runtime_notices"
+} > "$package_dir/NOTICE"
 # Omit macOS metadata files (._*) from the archive.
 COPYFILE_DISABLE=1 tar -czf "artifacts/release/$package_name.tar.gz" \
   -C artifacts/release "$package_name"
