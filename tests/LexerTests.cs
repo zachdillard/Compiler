@@ -107,8 +107,8 @@ public sealed class LexerTests
 
     Assert.Collection(tokens,
       token => Assert.True(token is Decrement),
-      token => Assert.True(token is Minus),
-      token => Assert.True(token is Tilde),
+      token => Assert.True(token is Negate),
+      token => Assert.True(token is Complement),
       token => Assert.True(token is Constant { Value: 1 }));
   }
 

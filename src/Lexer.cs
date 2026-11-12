@@ -47,8 +47,8 @@ public partial class Lexer
     (CloseBraceRegex, _ => new CloseBrace()),
     (SemicolonRegex, _ => new Semicolon()),
     (DecrementRegex, _ => new Decrement()),
-    (MinusRegex, _ => new Minus()),
-    (TildeRegex, _ => new Tilde())
+    (NegateRegex, _ => new Negate()),
+    (ComplementRegex, _ => new Complement())
   ];
 
   private static int ParseConstant(string text)
@@ -93,8 +93,8 @@ public partial class Lexer
   private static partial Regex DecrementRegex { get; }
 
   [GeneratedRegex(@"-")]
-  private static partial Regex MinusRegex { get; }
+  private static partial Regex NegateRegex { get; }
 
   [GeneratedRegex(@"~")]
-  private static partial Regex TildeRegex { get; }
+  private static partial Regex ComplementRegex { get; }
 }

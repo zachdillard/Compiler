@@ -10,9 +10,9 @@ public readonly union Token
   OpenBrace,
   CloseBrace,
   Semicolon,
-  Minus,
+  Negate,
   Decrement,
-  Tilde
+  Complement
 );
 
 public record Identifier(string Value);
@@ -25,6 +25,6 @@ public record CloseParenthesis();
 public record OpenBrace();
 public record CloseBrace();
 public record Semicolon();
-public record Minus();
+public record Negate();
 public record Decrement();
-public record Tilde();
+public record Complement();
