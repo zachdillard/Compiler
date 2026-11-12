@@ -45,7 +45,10 @@ public partial class Lexer
     (CloseParenthesisRegex, _ => new CloseParenthesis()),
     (OpenBraceRegex, _ => new OpenBrace()),
     (CloseBraceRegex, _ => new CloseBrace()),
-    (SemicolonRegex, _ => new Semicolon())
+    (SemicolonRegex, _ => new Semicolon()),
+    (DecrementRegex, _ => new Decrement()),
+    (MinusRegex, _ => new Minus()),
+    (TildeRegex, _ => new Tilde())
   ];
 
   private static int ParseConstant(string text)
@@ -85,4 +88,13 @@ public partial class Lexer
 
   [GeneratedRegex(@";")]
   private static partial Regex SemicolonRegex { get; }
+
+  [GeneratedRegex(@"--")]
+  private static partial Regex DecrementRegex { get; }
+
+  [GeneratedRegex(@"-")]
+  private static partial Regex MinusRegex { get; }
+
+  [GeneratedRegex(@"~")]
+  private static partial Regex TildeRegex { get; }
 }

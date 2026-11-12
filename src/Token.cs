@@ -9,7 +9,10 @@ public readonly union Token
   CloseParenthesis,
   OpenBrace,
   CloseBrace,
-  Semicolon
+  Semicolon,
+  Minus,
+  Decrement,
+  Tilde
 );
 
 public record Identifier(string Value);
@@ -22,3 +25,6 @@ public record CloseParenthesis();
 public record OpenBrace();
 public record CloseBrace();
 public record Semicolon();
+public record Minus();
+public record Decrement();
+public record Tilde();

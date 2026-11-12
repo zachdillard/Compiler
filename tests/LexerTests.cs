@@ -92,13 +92,24 @@ public sealed class LexerTests
 
   [Theory]
   [InlineData("@", "Unexpected character: '@'")]
-  [InlineData("int main(void){return -1;}", "Unexpected character: '-'")]
   [InlineData("int main(void){return 1+2;}", "Unexpected character: '+'")]
   public void Run_UnsupportedCharacter_ThrowsDiagnostic(string source, string expected)
   {
     Error exception = Assert.Throws<Error>(() => Lexer.Run(source));
 
     Assert.Equal(expected, exception.Message);
+  }
+
+  [Fact]
+  public void Run_AdjacentOperators_MatchesDecrementBeforeMinus()
+  {
+    List<Token> tokens = Lexer.Run("---~1");
+
+    Assert.Collection(tokens,
+      token => Assert.True(token is Decrement),
+      token => Assert.True(token is Minus),
+      token => Assert.True(token is Tilde),
+      token => Assert.True(token is Constant { Value: 1 }));
   }
 
   [Theory]
