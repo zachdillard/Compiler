@@ -2,8 +2,15 @@ namespace Syntax.C
 {
   public record Program(Function Function);
   public record Function(string Identifier, Return Statement);
-  public record Return(Constant Expression);
+  public record Return(Expression Expression);
+
+  public readonly union Expression(Constant, Unary);
   public record Constant(int Value);
+  public record Unary(Operator Operator, Expression Expression);
+
+  public readonly union Operator(Complement, Negate);
+  public record Complement();
+  public record Negate();
 }
 
 namespace Syntax.Assembly

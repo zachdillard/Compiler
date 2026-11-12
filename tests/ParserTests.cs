@@ -20,6 +20,49 @@ public sealed class ParserTests
     Assert.Empty(tokens);
   }
 
+  [Fact]
+  public void ParsesNegation()
+  {
+    Assert.Equal<C.Expression>(new C.Unary(new C.Negate(), new C.Constant(42)),
+      ParseReturnExpression("-42"));
+  }
+
+  [Fact]
+  public void ParsesComplement()
+  {
+    Assert.Equal<C.Expression>(new C.Unary(new C.Complement(), new C.Constant(42)),
+      ParseReturnExpression("~42"));
+  }
+
+  [Fact]
+  public void ParsesNestedUnaryOperators()
+  {
+    C.Expression expected = new C.Unary(new C.Negate(),
+      new C.Unary(new C.Complement(), new C.Constant(42)));
+
+    Assert.Equal(expected, ParseReturnExpression("-~(42)"));
+  }
+
+  [Fact]
+  public void ParsesRedundantParenthesesAsConstant()
+  {
+    Assert.Equal<C.Expression>(new C.Constant(42), ParseReturnExpression("((42))"));
+  }
+
+  [Theory]
+  [InlineData("--42", "Expected an expression.")]
+  [InlineData("-~", "Expected an expression.")]
+  [InlineData("(42", "Expected CloseParenthesis.")]
+  [InlineData("42)", "Expected Semicolon.")]
+  public void RejectsInvalidExpressionsWithDiagnostic(string expression, string expected)
+  {
+    List<Token> tokens = Lexer.Run($"int main(void) {{ return {expression}; }}");
+
+    Error exception = Assert.Throws<Error>(() => Parser.Run(tokens));
+
+    Assert.Equal(expected, exception.Message);
+  }
+
   [Theory]
   [InlineData("")]
   [InlineData("int main(void) { return 2;")]
@@ -63,7 +106,7 @@ public sealed class ParserTests
   [InlineData(4, "Expected CloseParenthesis.")]
   [InlineData(5, "Expected OpenBrace.")]
   [InlineData(6, "Expected Return.")]
-  [InlineData(7, "Expected an integer constant.")]
+  [InlineData(7, "Expected an expression.")]
   [InlineData(8, "Expected Semicolon.")]
   [InlineData(9, "Expected CloseBrace.")]
   public void RejectsIncorrectTokenWithDiagnostic(int position, string expected)
@@ -91,6 +134,16 @@ public sealed class ParserTests
     Error exception = Assert.Throws<Error>(() => Parser.Run(tokens));
 
     Assert.Equal("Unexpected tokens after the function.", exception.Message);
+  }
+
+  private static C.Expression ParseReturnExpression(string expression)
+  {
+    List<Token> tokens = Lexer.Run($"int main(void) {{ return {expression}; }}");
+
+    C.Program program = Parser.Run(tokens);
+
+    Assert.Empty(tokens);
+    return program.Function.Statement.Expression;
   }
 
   private static List<Token> FunctionTokens(string identifier, int value) =>

@@ -29,15 +29,29 @@ public class Parser
   private static C.Return ParseStatement(List<Token> tokens)
   {
     Expect<Return>(tokens);
-    C.Constant expression = ParseExpression(tokens);
+    C.Expression expression = ParseExpression(tokens);
     Expect<Semicolon>(tokens);
 
     return new C.Return(expression);
   }
 
-  private static C.Constant ParseExpression(List<Token> tokens)
+  private static C.Expression ParseExpression(List<Token> tokens)
   {
-    return new C.Constant(ParseInt(tokens));
+    switch (TakeToken(tokens))
+    {
+      case Constant constant:
+        return new C.Constant(constant.Value);
+      case Negate:
+        return new C.Unary(new C.Negate(), ParseExpression(tokens));
+      case Complement:
+        return new C.Unary(new C.Complement(), ParseExpression(tokens));
+      case OpenParenthesis:
+        C.Expression expression = ParseExpression(tokens);
+        Expect<CloseParenthesis>(tokens);
+        return expression;
+      default:
+        throw new Error("Expected an expression.");
+    }
   }
 
   private static string ParseIdentifier(List<Token> tokens)
@@ -46,14 +60,6 @@ public class Parser
       return identifier.Value;
 
     throw new Error("Expected an identifier.");
-  }
-
-  private static int ParseInt(List<Token> tokens)
-  {
-    if (TakeToken(tokens) is Constant constant)
-      return constant.Value;
-
-    throw new Error("Expected an integer constant.");
   }
 
   private static void Expect<T>(List<Token> tokens)

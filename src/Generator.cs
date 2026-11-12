@@ -1,3 +1,4 @@
+using Helpers;
 using Assembly = Syntax.Assembly;
 using C = Syntax.C;
 
@@ -27,8 +28,10 @@ public class Generator
     ];
   }
 
-  private static Assembly.Imm GenerateImmediate(C.Constant expression)
+  private static Assembly.Imm GenerateImmediate(C.Expression expression) => expression switch
   {
-    return new Assembly.Imm(expression.Value);
-  }
+    C.Constant constant => new Assembly.Imm(constant.Value),
+    C.Unary => throw new Error("Code generation for unary expressions is unsupported."),
+    _ => throw new InvalidOperationException("Unknown C expression.")
+  };
 }

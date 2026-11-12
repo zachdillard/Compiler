@@ -254,6 +254,23 @@ public sealed class DriverTests
     Assert.False(File.Exists(fixture.ExecutablePath));
   }
 
+  [Fact]
+  public void UnaryReturnParsesAndReportsCodeGenerationError()
+  {
+    using var fixture = new TestFixture("int main(void) { return -~(42); }");
+
+    var parse = RunCompiler("--parse", fixture.SourcePath);
+    var codegen = RunCompiler("--codegen", fixture.SourcePath);
+
+    Assert.Equal(ExitCode.Success, parse.ExitCode);
+    Assert.Empty(parse.StandardError);
+    Assert.Equal(ExitCode.Failure, codegen.ExitCode);
+    Assert.Equal($"Error: Code generation for unary expressions is unsupported.{Environment.NewLine}",
+      codegen.StandardError);
+    Assert.False(File.Exists(fixture.AssemblyPath));
+    Assert.False(File.Exists(fixture.ExecutablePath));
+  }
+
   [Theory]
   [InlineData("2147483648", "")]
   [InlineData("999999999999999999999999", "")]
