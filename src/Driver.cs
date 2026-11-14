@@ -53,6 +53,8 @@ try
     if (compilerArgs.ParseOnly)
       return ExitCode.Success;
 
+    // Lower to Three Address Code
+
     Assembly.Program assembly = Generator.Run(program);
     if (compilerArgs.CodegenOnly)
       return ExitCode.Success;
