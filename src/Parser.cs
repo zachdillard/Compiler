@@ -37,20 +37,23 @@ public class Parser
 
   private static C.Expression ParseExpression(List<Token> tokens)
   {
-    switch (TakeToken(tokens))
+    var nextToken = PeekToken(tokens);
+
+    switch(nextToken)
     {
-      case Constant constant:
-        return new C.Constant(constant.Value);
-      case Negate:
-        return new C.Unary(new C.Negate(), ParseExpression(tokens));
-      case Complement:
-        return new C.Unary(new C.Complement(), ParseExpression(tokens));
+      case Constant:
+        return new C.Constant(ParseInt(tokens));
+      case Complement or Negate:
+        var op = ParseOperator(tokens);
+        var innerExpression = ParseExpression(tokens);
+        return new C.Unary(op, innerExpression);
       case OpenParenthesis:
-        C.Expression expression = ParseExpression(tokens);
+        TakeToken(tokens);
+        innerExpression = ParseExpression(tokens);
         Expect<CloseParenthesis>(tokens);
-        return expression;
+        return innerExpression;
       default:
-        throw new Error("Expected an expression.");
+        throw new Error("Malformed expression");
     }
   }
 
@@ -60,6 +63,24 @@ public class Parser
       return identifier.Value;
 
     throw new Error("Expected an identifier.");
+  }
+
+  private static C.Operator ParseOperator(List<Token> tokens)
+  {
+    return TakeToken(tokens) switch
+    {
+      Complement => new C.Complement(),
+      Negate => new C.Negate(),
+      _ => throw new Error("Unexpected operator"),
+    };
+  }
+
+  private static int ParseInt(List<Token> tokens)
+  {
+    if (TakeToken(tokens) is Constant constant)
+      return constant.Value;
+
+    throw new Error("Expected an integer constant.");
   }
 
   private static void Expect<T>(List<Token> tokens)
@@ -73,8 +94,16 @@ public class Parser
     if (tokens.Count == 0)
       throw new Error("Unexpected end of input.");
 
-    Token token = tokens[0];
+    Token token = tokens.First();
     tokens.RemoveAt(0);
     return token;
+  }
+
+  private static Token PeekToken(List<Token> tokens)
+  {
+    if (tokens.Count == 0)
+      throw new Error("Unexpected end of input.");
+
+    return tokens.First();
   }
 }

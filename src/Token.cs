@@ -15,9 +15,6 @@ public readonly union Token
   Complement
 );
 
-public readonly union ExpressionGroup(Int, OperatorGroup, OpenParenthesis);
-public readonly union OperatorGroup(Negate, Complement);
-
 public record Identifier(string Value);
 public record Int();
 public record Void();
