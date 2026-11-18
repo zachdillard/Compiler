@@ -19,9 +19,16 @@ public class Lowerer
     public static List<ThreeAddressCode.Instruction> LowerStatement(C.Return statement)
     {
         List<ThreeAddressCode.Instruction> instructions = [];
+        instructions.AddRange(LowerExpression(statement.Expression, out ThreeAddressCode.Val value));
+        instructions.Add(new ThreeAddressCode.Return(value));
+        return instructions;
+    }
 
-        
+    public static List<ThreeAddressCode.Instruction> LowerExpression(C.Expression expression, out ThreeAddressCode.Val value)
+    {
+        List<ThreeAddressCode.Instruction> instructions = [];
 
+        value = new ThreeAddressCode.Constant(0);
         return instructions;
     }
 }
