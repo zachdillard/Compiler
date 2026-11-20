@@ -10,25 +10,51 @@ public class Lowerer
         return new ThreeAddressCode.Program(function);
     }
 
-    public static ThreeAddressCode.Function LowerFunction(C.Function function)
+    private static ThreeAddressCode.Function LowerFunction(C.Function function)
     {
         List<ThreeAddressCode.Instruction> instructions = LowerStatement(function.Statement);
         return new ThreeAddressCode.Function(function.Identifier, instructions);
     }
 
-    public static List<ThreeAddressCode.Instruction> LowerStatement(C.Return statement)
+    private static List<ThreeAddressCode.Instruction> LowerStatement(C.Return statement)
     {
         List<ThreeAddressCode.Instruction> instructions = [];
-        instructions.AddRange(LowerExpression(statement.Expression, out ThreeAddressCode.Val value));
+        ThreeAddressCode.Val value = LowerExpression(statement.Expression, instructions);
         instructions.Add(new ThreeAddressCode.Return(value));
         return instructions;
     }
 
-    public static List<ThreeAddressCode.Instruction> LowerExpression(C.Expression expression, out ThreeAddressCode.Val value)
+    private static ThreeAddressCode.Val LowerExpression(C.Expression expression, List<ThreeAddressCode.Instruction> instructions)
     {
-        List<ThreeAddressCode.Instruction> instructions = [];
+        switch (expression)
+        {
+            case C.Constant constant:
+                return new ThreeAddressCode.Constant(constant.Value);
+            case C.Unary unary:
+                ThreeAddressCode.Val source = LowerExpression(unary.Expression, instructions);
+                string destinationName = MakeTemporary();
+                ThreeAddressCode.Val destination = new ThreeAddressCode.Var(destinationName);
+                ThreeAddressCode.Operator op = LowerOperator(unary.Operator);
+                instructions.Add(new ThreeAddressCode.Unary(op, source, destination));
+                return destination;
+            default:
+                throw new NotSupportedException($"Expression type {expression.GetType().Name} is not supported.");
+        }
+    }
 
-        value = new ThreeAddressCode.Constant(0);
-        return instructions;
+    private static ThreeAddressCode.Operator LowerOperator(C.Operator op)
+    {
+        switch (op)
+        {
+            case C.Negate:
+                return new ThreeAddressCode.Negate();
+            default:
+                throw new NotSupportedException($"Operator {op} is not supported.");
+        }
+    }
+
+    private static string MakeTemporary()
+    {
+        return $"t{Guid.NewGuid().ToString("N")}";
     }
 }
