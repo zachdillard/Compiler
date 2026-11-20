@@ -48,6 +48,8 @@ public class Lowerer
         {
             case C.Negate:
                 return new ThreeAddressCode.Negate();
+            case C.Complement:
+                return new ThreeAddressCode.Complement();
             default:
                 throw new NotSupportedException($"Operator {op} is not supported.");
         }
