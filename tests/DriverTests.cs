@@ -17,7 +17,7 @@ public sealed class DriverTests
     var version = typeof(Lexer).Assembly
       .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Equal($"Compiler {version}{Environment.NewLine}", result.StandardOutput);
     Assert.Empty(result.StandardError);
   }
@@ -36,7 +36,7 @@ public sealed class DriverTests
   {
     var result = RunCompilerWithoutGcc(first, second);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Contains("Error: --version option cannot be combined with other arguments.", result.StandardError);
     Assert.Contains("Usage: Compiler", result.StandardError);
@@ -47,7 +47,7 @@ public sealed class DriverTests
   {
     var result = RunCompiler();
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Contains("Error: Required argument missing", result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
   }
@@ -59,7 +59,7 @@ public sealed class DriverTests
   {
     var result = RunCompilerWithoutGcc(option);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardError);
     Assert.Contains("<source-file>", result.StandardOutput);
     Assert.DoesNotContain("-gcc", result.StandardOutput);
@@ -82,7 +82,7 @@ public sealed class DriverTests
   {
     var result = RunCompiler(argument);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Contains(error, result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
   }
@@ -107,7 +107,7 @@ public sealed class DriverTests
       ? RunCompilerWithoutGcc(fixture.SourcePath)
       : RunCompilerWithoutGcc(option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Equal($"Error: source file must have a .c extension.{Environment.NewLine}", result.StandardError);
     Assert.Empty(result.StandardOutput);
     Assert.Equal(source, File.ReadAllText(fixture.SourcePath));
@@ -123,7 +123,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Empty(result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
@@ -148,7 +148,7 @@ public sealed class DriverTests
       ? RunCompiler(fixture.SourcePath, option)
       : RunCompiler(option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Empty(result.StandardError);
     Assert.Equal(option == "-S", File.Exists(fixture.AssemblyPath));
@@ -163,22 +163,12 @@ public sealed class DriverTests
 
     var result = RunCompiler(fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.True(File.Exists(fixture.ExecutablePath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
 
-    var executableResult = Process.Start(new ProcessStartInfo
-    {
-      FileName = fixture.ExecutablePath,
-      UseShellExecute = false,
-      RedirectStandardOutput = true,
-      RedirectStandardError = true,
-      CreateNoWindow = true
-    });
-
-    Assert.NotNull(executableResult);
-    executableResult.WaitForExit();
+    var executableResult = Process.Run(fixture.ExecutablePath, silent: true);
     Assert.Equal(7, executableResult.ExitCode);
   }
 
@@ -189,7 +179,7 @@ public sealed class DriverTests
 
     var result = RunCompiler("-S", fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.Equal(ExpectedHostAssembly, File.ReadAllText(fixture.AssemblyPath));
@@ -201,7 +191,7 @@ public sealed class DriverTests
   {
     using var fixture = new TestFixture("int main(void) { return 7; }");
     var result = RunCompiler("-S", fixture.SourcePath);
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.False(File.Exists(fixture.ExecutablePath));
 
     var gccStartInfo = new ProcessStartInfo
@@ -218,21 +208,10 @@ public sealed class DriverTests
       gccStartInfo.ArgumentList.Insert(1, "x86_64");
     }
 
-    using var gcc = Process.Start(gccStartInfo);
-    Assert.NotNull(gcc);
-    string diagnostics = gcc.StandardError.ReadToEnd();
-    gcc.WaitForExit();
-    Assert.True(gcc.ExitCode == 0, diagnostics);
+    var gcc = Process.RunAndCaptureText(gccStartInfo);
+    Assert.True(gcc.ExitStatus.ExitCode == 0, gcc.StandardError);
 
-    using var executable = Process.Start(new ProcessStartInfo
-    {
-      FileName = fixture.ExecutablePath,
-      UseShellExecute = false,
-      RedirectStandardOutput = true,
-      RedirectStandardError = true
-    });
-    Assert.NotNull(executable);
-    executable.WaitForExit();
+    var executable = Process.Run(fixture.ExecutablePath, silent: true);
     Assert.Equal(7, executable.ExitCode);
   }
 
@@ -247,7 +226,7 @@ public sealed class DriverTests
 
     var result = RunCompilerWithOption(option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Contains("Expected Semicolon", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
@@ -262,9 +241,9 @@ public sealed class DriverTests
     var parse = RunCompiler("--parse", fixture.SourcePath);
     var codegen = RunCompiler("--codegen", fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Success, parse.ExitCode);
+    Assert.Equal(ExitCode.Success, parse.ExitStatus.ExitCode);
     Assert.Empty(parse.StandardError);
-    Assert.Equal(ExitCode.Failure, codegen.ExitCode);
+    Assert.Equal(ExitCode.Failure, codegen.ExitStatus.ExitCode);
     Assert.Equal($"Error: Code generation for unary expressions is unsupported.{Environment.NewLine}",
       codegen.StandardError);
     Assert.False(File.Exists(fixture.AssemblyPath));
@@ -288,7 +267,7 @@ public sealed class DriverTests
 
     var result = RunCompilerWithOption(option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Equal($"Error: integer constant is outside the supported int range.{Environment.NewLine}",
       result.StandardError);
@@ -304,7 +283,7 @@ public sealed class DriverTests
 
     var result = RunCompiler("--lex", fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
@@ -328,7 +307,7 @@ public sealed class DriverTests
     {
       var result = RunCompilerWithoutGcc(arguments);
 
-      Assert.Equal(ExitCode.Failure, result.ExitCode);
+      Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
       Assert.Empty(result.StandardOutput);
       Assert.Contains("Error: Options '--lex', '--parse', '--codegen', and '-S' cannot be combined.",
         result.StandardError);
@@ -350,7 +329,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(option, option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Contains($"Error: Option '{option}' cannot be repeated.", result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
@@ -377,7 +356,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(argument, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Contains($"Error: Unrecognized command or argument '{fixture.SourcePath}'.", result.StandardError);
     Assert.Contains("Usage: Compiler [--lex | --parse | --codegen | -S] <source-file>", result.StandardError);
@@ -399,7 +378,7 @@ public sealed class DriverTests
 
     var result = RunCompilerWithOption(option, fixture.SourcePath);
 
-    Assert.NotEqual(ExitCode.Success, result.ExitCode);
+    Assert.NotEqual(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Contains("header-that-does-not-exist.h", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
     Assert.False(File.Exists(fixture.AssemblyPath));
@@ -426,7 +405,7 @@ public sealed class DriverTests
 
     var result = RunCompilerWithEnvironment(["-S", fixture.SourcePath], gccDirectory: gccDirectory);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardError);
     Assert.Contains("movl $7, %eax", File.ReadAllText(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
@@ -445,7 +424,7 @@ public sealed class DriverTests
 
     var result = RunCompiler("-S", fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardError);
     Assert.Equal(ExpectedHostAssembly, File.ReadAllText(fixture.AssemblyPath));
     Assert.False(File.Exists(fixture.PreprocessedPath));
@@ -470,7 +449,7 @@ public sealed class DriverTests
       option == string.Empty ? [fixture.SourcePath] : [option, fixture.SourcePath],
       gccDirectory: gccDirectory);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Equal($"preprocessing failed{Environment.NewLine}", result.StandardError);
     Assert.Empty(result.StandardOutput);
     Assert.False(File.Exists(fixture.PreprocessedPath));
@@ -492,7 +471,7 @@ public sealed class DriverTests
 
     var result = RunCompilerWithOption(option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardError);
     Assert.Equal("hand-written preprocessed file", File.ReadAllText(fixture.PreprocessedPath));
     Assert.Equal(option == "-S" ? ExpectedHostAssembly : "hand-written assembly file",
@@ -528,20 +507,12 @@ public sealed class DriverTests
 
     var result = RunCompilerWithEnvironment(["@program.c"], workingDirectory: fixture.DirectoryPath);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Empty(result.StandardError);
     Assert.Equal("--version", File.ReadAllText(responseFile));
 
-    using var executable = Process.Start(new ProcessStartInfo
-    {
-      FileName = fixture.ExecutablePath,
-      UseShellExecute = false,
-      RedirectStandardOutput = true,
-      RedirectStandardError = true
-    });
-    Assert.NotNull(executable);
-    executable.WaitForExit();
+    var executable = Process.Run(fixture.ExecutablePath, silent: true);
     Assert.Equal(7, executable.ExitCode);
   }
 
@@ -553,7 +524,7 @@ public sealed class DriverTests
 
     var result = RunCompiler("-S", fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Contains("Error: could not access a compiler file:", result.StandardError);
     Assert.DoesNotContain("Unhandled exception", result.StandardError);
     Assert.Empty(result.StandardOutput);
@@ -569,7 +540,7 @@ public sealed class DriverTests
 
     var result = RunCompilerWithoutGcc(fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Equal($"Error: could not start gcc. Ensure gcc is installed and available on PATH.{Environment.NewLine}",
       result.StandardError);
     Assert.Empty(result.StandardOutput);
@@ -585,7 +556,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(fixture.SourcePath);
 
-    Assert.NotEqual(ExitCode.Success, result.ExitCode);
+    Assert.NotEqual(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Contains("error", result.StandardError, StringComparison.OrdinalIgnoreCase);
     Assert.False(File.Exists(fixture.PreprocessedPath));
   }
@@ -597,7 +568,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(fixture.SourcePath);
 
-    Assert.NotEqual(ExitCode.Success, result.ExitCode);
+    Assert.NotEqual(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Contains("Error: could not assemble and link the program.", result.StandardError);
     Assert.Empty(result.StandardOutput);
     Assert.False(File.Exists(fixture.PreprocessedPath));
@@ -613,7 +584,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(fixture.SourcePath);
 
-    Assert.NotEqual(ExitCode.Success, result.ExitCode);
+    Assert.NotEqual(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Contains("No such file or directory", result.StandardError, StringComparison.OrdinalIgnoreCase);
   }
 
@@ -628,7 +599,7 @@ public sealed class DriverTests
 
     var result = RunCompiler(option, fixture.SourcePath);
 
-    Assert.Equal(ExitCode.Failure, result.ExitCode);
+    Assert.Equal(ExitCode.Failure, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Contains("Error:", result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
@@ -654,7 +625,7 @@ public sealed class DriverTests
 
     var result = RunCompilerWithEnvironment([option, fixture.SourcePath], gccDirectory: gccDirectory);
 
-    Assert.Equal(ExitCode.Success, result.ExitCode);
+    Assert.Equal(ExitCode.Success, result.ExitStatus.ExitCode);
     Assert.Empty(result.StandardOutput);
     Assert.Empty(result.StandardError);
     Assert.False(File.Exists(fixture.PreprocessedPath));
@@ -669,22 +640,22 @@ public sealed class DriverTests
     : "\t.globl main\nmain:\n\tmovl $7, %eax\n\tret\n\t.section .note.GNU-stack,\"\",@progbits\n")
     .Replace("\n", Environment.NewLine);
 
-  private static ProcessResult RunCompilerWithOption(string option, string sourcePath)
+  private static ProcessTextOutput RunCompilerWithOption(string option, string sourcePath)
   {
     return option == string.Empty ? RunCompiler(sourcePath) : RunCompiler(option, sourcePath);
   }
 
-  private static ProcessResult RunCompiler(params string[] arguments)
+  private static ProcessTextOutput RunCompiler(params string[] arguments)
   {
     return RunCompilerWithEnvironment(arguments, withoutGcc: false);
   }
 
-  private static ProcessResult RunCompilerWithoutGcc(params string[] arguments)
+  private static ProcessTextOutput RunCompilerWithoutGcc(params string[] arguments)
   {
     return RunCompilerWithEnvironment(arguments, withoutGcc: true);
   }
 
-  private static ProcessResult RunCompilerWithEnvironment(string[] arguments, bool withoutGcc = false,
+  private static ProcessTextOutput RunCompilerWithEnvironment(string[] arguments, bool withoutGcc = false,
     string? gccDirectory = null, string? temporaryDirectory = null, string? workingDirectory = null)
   {
     var compilerAssembly = typeof(Lexer).Assembly.Location;
@@ -725,17 +696,8 @@ public sealed class DriverTests
     if (workingDirectory is not null)
       startInfo.WorkingDirectory = workingDirectory;
 
-    using var process = Process.Start(startInfo);
-    Assert.NotNull(process);
-
-    var standardOutput = process.StandardOutput.ReadToEnd();
-    var standardError = process.StandardError.ReadToEnd();
-    process.WaitForExit();
-
-    return new ProcessResult(process.ExitCode, standardOutput, standardError);
+    return Process.RunAndCaptureText(startInfo);
   }
-
-  private sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
 
   private sealed class TestFixture : IDisposable
   {

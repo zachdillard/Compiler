@@ -38,13 +38,13 @@ public class Emitter
   {
     Assembly.Mov mov => $"movl {EmitOperand(mov.Source)}, {EmitOperand(mov.Destination)}",
     Assembly.Ret => "ret",
-    _ => throw new InvalidOperationException("Unknown assembly instruction.")
+    null => throw new InvalidOperationException("Unknown assembly instruction.")
   };
 
   private static string EmitOperand(Assembly.Operand operand) => operand switch
   {
     Assembly.Imm imm => $"${imm.Value}",
     Assembly.Register => "%eax",
-    _ => throw new InvalidOperationException("Unknown assembly operand.")
+    null => throw new InvalidOperationException("Unknown assembly operand.")
   };
 }

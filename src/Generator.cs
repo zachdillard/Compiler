@@ -32,6 +32,6 @@ public class Generator
   {
     C.Constant constant => new Assembly.Imm(constant.Value),
     C.Unary => throw new Error("Code generation for unary expressions is unsupported."),
-    _ => throw new InvalidOperationException("Unknown C expression.")
+    null => throw new InvalidOperationException("Unknown C expression.")
   };
 }

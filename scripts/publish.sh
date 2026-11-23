@@ -26,6 +26,7 @@ package_dir="artifacts/release/$package_name"
 # Publish an optimized Release build for the host. Compiler.csproj enables
 # Native AOT, which compiles ahead of time, so the executable runs without an
 # installed .NET runtime.
+# Skip the full managed build during Native AOT publishing.
 # Exclude debug symbols so the publish folder contains a single executable.
 #
 # Use one MSBuild worker and disable build servers to avoid sandbox socket errors.
@@ -35,6 +36,7 @@ runtime_pack_path=$(
     --configuration Release \
     --runtime "$runtime" \
     --output "$publish_dir" \
+    -p:UseOptimizedPublish=true \
     -p:CopyOutputSymbolsToPublishDirectory=false \
     -getProperty:_NETCoreAppRuntimePackPath \
     -m:1 \

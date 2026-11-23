@@ -14,6 +14,8 @@ The goals of this project are to:
 ## .NET 11 Highlights
 
 - **C# 15 unions.** The compiler uses unions for [tokens](src/Token.cs), instructions, and operands. See [assembly syntax](src/Syntax.cs).
+- **Labeled `continue`.** The [lexer](src/Lexer.cs) starts the next token scan as soon as a pattern matches.
+- **Process helpers.** The [GCC wrapper](src/Helpers/GCC.cs) uses `Process.Run`, and the [CLI tests](tests/DriverTests.cs) use `Process.RunAndCaptureText` to capture both output streams.
 - **File-based apps.** The concept examples run as standalone C# files.
 
 ## Scope
@@ -51,6 +53,8 @@ The compiler runs on macOS and x86-64 Linux. It selects the output target based 
 | --- | --- | --- |
 | macOS (Intel or Apple Silicon) | macOS x86-64 | Apple Silicon requires Rosetta 2. |
 | Linux (x86-64) | Linux x86-64 | Runs natively on x86-64 Linux. |
+
+On Intel Macs and x86-64 Linux, running the compiler requires an [x86-64-v2 CPU](https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-11/runtime#x86x64-requirements).
 
 ### Build the compiler
 

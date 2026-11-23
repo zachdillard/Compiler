@@ -11,7 +11,6 @@ public static class GCC
     {
       FileName = "gcc",
       UseShellExecute = false,
-      RedirectStandardError = true,
       CreateNoWindow = true
     };
 
@@ -27,14 +26,7 @@ public static class GCC
 
     try
     {
-      using var process = new Process { StartInfo = startInfo };
-      process.Start();
-
-      var diagnostics = process.StandardError.ReadToEnd();
-      process.WaitForExit();
-
-      Console.Error.Write(diagnostics);
-      return process.ExitCode;
+      return Process.Run(startInfo).ExitCode;
     }
     catch (Win32Exception)
     {

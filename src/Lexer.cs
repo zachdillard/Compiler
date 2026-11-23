@@ -7,13 +7,11 @@ public partial class Lexer
   {
     List<Token> tokens = [];
 
-    while (input != string.Empty)
+    nextToken: while (input != string.Empty)
     {
       input = input.TrimStart();
       if (input == string.Empty)
         break;
-
-      bool matched = false;
 
       foreach ((Regex pattern, Func<string, Token> create) in Patterns)
       {
@@ -23,12 +21,10 @@ public partial class Lexer
 
         tokens.Add(create(match.Value));
         input = input[match.Length..];
-        matched = true;
-        break;
+        continue nextToken;
       }
 
-      if (!matched)
-        throw new Error($"Unexpected character: '{input[0]}'");
+      throw new Error($"Unexpected character: '{input[0]}'");
     }
 
     return tokens;
